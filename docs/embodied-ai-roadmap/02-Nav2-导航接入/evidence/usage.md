@@ -118,6 +118,8 @@ pose.pose.position.x
 
 刚启动时通常接近 `0`。
 
+这里的 `/odom` 只用于判断机器人是否真实移动，不用于判断 `map` 坐标目标误差。`NavigateToPose` 的目标是 `frame_id: map`，目标误差应使用第 8 节的 TF 检查。
+
 ## 6. 发送短距离目标
 
 发送一个 0.5m 的 `NavigateToPose` 目标：
@@ -165,7 +167,33 @@ pose.pose.position.x
 
 只看到 action `SUCCEEDED` 还不够，必须同时看到 `/odom` 变化。之前出现过因 tolerance 过大导致的“假成功”，所以这里必须做里程计确认。
 
-## 8. 可选：观察速度链路
+但不要把 `/odom` 的 `x/y` 直接和 `map` 目标坐标相减。SLAM 会发布 `map -> odom` 修正，`odom` 坐标和 `map` 坐标不是同一个坐标系。
+
+## 8. 确认 map 坐标目标误差
+
+如果要确认机器人是否到达 `map` 坐标目标，用 TF 查询 `map -> base_link`：
+
+```bash
+ros2 run tf2_ros tf2_echo map base_link
+```
+
+对于第 6 节的目标 `(0.5, 0.0)`，预期 `Translation` 接近：
+
+```text
+x: 0.5
+y: 0.0
+```
+
+允许误差以 Nav2 goal checker 为准。当前参数中：
+
+```text
+xy_goal_tolerance: 0.10
+yaw_goal_tolerance: 0.25
+```
+
+因此目标完成后，`map -> base_link` 的平面距离误差应在约 `0.10m` 内，朝向误差应在约 `0.25rad` 内。
+
+## 9. 可选：观察速度链路
 
 目标执行过程中可以观察 Nav2 输出：
 
@@ -180,7 +208,7 @@ ros2 topic echo /cmd_vel_smoothed --once
 
 不要用 `/cmd_vel` 判断阶段 02 是否正常。阶段 02 的 Gazebo 控制入口是 `/cmd_vel_smoothed`。
 
-## 9. 通过标准
+## 10. 通过标准
 
 本探针响应符合预期，需要同时满足：
 
@@ -191,12 +219,13 @@ ros2 topic echo /cmd_vel_smoothed --once
 - `/cmd_vel_smoothed` 有 `kibot_one_bridge` subscriber。
 - 0.5m 目标返回 `SUCCEEDED`。
 - `/odom.pose.pose.position.x` 明显前进。
+- `map -> base_link` 接近发送的 `map` 目标坐标。
 
 任意一项失败，都不能宣称阶段 02 可用。优先根据失败点回查 `../evidence/validation-log.md` 中记录过的历史问题。
 
 系统预期状态、完成边界和 `(5.0, 0.0)` 这类压力目标的判读，统一以 `../roadmap/index.md` 为准；本文件只保留具体操作步骤。
 
-## 10. 收尾
+## 11. 收尾
 
 验证完成后，在启动 launch 的终端按 `Ctrl+C`。
 

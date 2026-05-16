@@ -106,7 +106,7 @@ ros2 launch kibot_one_sim nav2.launch.py start_sim:=false start_slam:=false use_
 - `controller_server`、`planner_server`、`bt_navigator`、`waypoint_follower` 等 Nav2 lifecycle node 进入 `active [3]`。
 - `/navigate_to_pose` 可以接收 `nav2_msgs/action/NavigateToPose` 目标。
 - Nav2 的速度输出经 `/cmd_vel_smoothed` 进入 `kibot_one_bridge`，再桥接到 Gazebo 的 `/model/kibot_one_base/cmd_vel`。
-- 在默认障碍物世界中，发送一个近距离可达目标，例如 `map` 坐标 `(0.5, 0.0)`，应返回 `SUCCEEDED`，并且 `/odom` 能看到机器人实际前进。
+- 在默认障碍物世界中，发送一个近距离可达目标，例如 `map` 坐标 `(0.5, 0.0)`，应返回 `SUCCEEDED`；`/odom` 能看到机器人实际前进，`map -> base_link` 能看到机器人接近目标坐标。
 
 这个状态证明的是“Nav2 点到点导航入口已经接通，并能执行局部可达目标”。它不是完整自主探索，也不是任意远端目标的可达性保证。
 
