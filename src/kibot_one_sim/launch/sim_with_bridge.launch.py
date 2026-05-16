@@ -20,11 +20,17 @@ def generate_launch_description() -> LaunchDescription:
         default_value=str(default_world),
         description='Gazebo 世界文件的绝对路径。'
     )
+    run_on_start_arg = DeclareLaunchArgument(
+        'run_on_start',
+        default_value='false',
+        description='是否使用 -r 让 Gazebo 启动后立即运行仿真。',
+    )
 
     start_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(str(gazebo_launch)),
         launch_arguments={
             'world': LaunchConfiguration('world'),
+            'run_on_start': LaunchConfiguration('run_on_start'),
         }.items()
     )
 
@@ -35,6 +41,7 @@ def generate_launch_description() -> LaunchDescription:
 
     return LaunchDescription([
         world_arg,
+        run_on_start_arg,
         start_gazebo,
         start_bridge,
     ])
