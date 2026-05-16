@@ -183,6 +183,44 @@ docs/<目标>-tutorial/
 这节完成后，下一节是什么？
 ```
 
+如果章节涉及代码、配置、launch、API schema、命令行脚本或任何具体文件改动，必须采用增量式教学写法：
+
+- 先给出最小可理解片段，再逐步加入下一段代码或配置。
+- 每次新增片段后解释新增行承担的职责。
+- 不要一开始贴完整文件，也不要只列“新增某文件、修改某参数”。
+- 文件路径可以说明落点，但章节主线应围绕工程概念和行为闭环，而不是围绕 diff 顺序。
+- 完整文件只能放在章节末尾作为汇总，或放入 `reference/` / `evidence/`，不能替代逐步讲解。
+- 每个代码片段都应说明放到哪个文件、放在什么上下文附近，以及执行到这一步后可以观察到什么。
+
+示例风格：
+
+````markdown
+我们先写最小配置，让节点知道自己的更新频率：
+
+```yaml
+controller_server:
+  ros__parameters:
+    controller_frequency: 20.0
+```
+
+这里先不配置 planner 或 costmap，只确认 controller server 有自己的参数入口。
+
+接下来加入 progress checker：
+
+```yaml
+controller_server:
+  ros__parameters:
+    controller_frequency: 20.0
+    progress_checker_plugins: ["progress_checker"]
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5
+      movement_time_allowance: 10.0
+```
+
+新增的 `progress_checker_plugins` 告诉 Nav2 加载哪个进展检查器；`required_movement_radius` 和 `movement_time_allowance` 定义“多久没有移动多少距离就算失败”。
+````
+
 章节粒度规则：
 
 - 一个章节只推进一个主要工程动作。
