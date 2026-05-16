@@ -14,14 +14,22 @@
 
 ```mermaid
 flowchart TD
-  A["01 隔离旧控制链路"]
-  B["02 增加 Nav2 参数"]
-  C["03 增加 Nav2 启动入口"]
-  D["04 验证 lifecycle 与目标入口"]
-  E["05 交付阶段 03 契约"]
+  A["01 明确导航控制权"]
+  B["02 建立 Nav2 参数骨架"]
+  C["03 接通 Nav2 启动链路"]
+  D["04 验证点到点导航闭环"]
+  E["05 交付阶段 03 导航契约"]
 
   A --> B --> C --> D --> E
 ```
+
+阅读顺序：
+
+- `01-隔离旧控制链路.md`：先解释为什么 Nav2 必须拥有独立速度链路，并逐步把 Gazebo bridge 交给 `/cmd_vel_smoothed`。
+- `02-增加-Nav2-参数.md`：从 frame 约定开始，逐步构造 controller、costmap、planner、smoother 和 collision monitor 参数。
+- `03-增加-Nav2-启动入口.md`：从空 launch 文件开始，逐步加入路径解析、launch 参数、仿真、SLAM、Nav2、RViz 和依赖检查。
+- `04-验证-lifecycle-与目标入口.md`：把运行验证拆成 lifecycle、action、速度链路、`/odom` 移动证明和 `map -> base_link` 目标误差证明。
+- `05-交付阶段-03-契约.md`：把阶段 03 可以依赖的 action、坐标、成功、失败、取消和超时语义收束成契约。
 
 ## 最少需要先读
 
@@ -145,6 +153,23 @@ error_code: 105
 应该判读为：Nav2 action server 已经接入，但路径跟随阶段没有稳定取得进展。`105` 对应 `FollowPath` 的 `FAILED_TO_MAKE_PROGRESS`，不是依赖缺失，也不是 `/navigate_to_pose` 没启动。
 
 阶段 02 的可靠验收目标是近距离局部可达点，例如 `(0.5, 0.0)`；更长距离目标应该由 RViz 在当前可见空旷区域内选择，或由阶段 03 拆成可恢复的 waypoint。
+
+## 下一阶段依赖契约
+
+阶段 03 可以依赖：
+
+- `/navigate_to_pose` action 存在，并使用 `nav2_msgs/action/NavigateToPose`。
+- 目标坐标使用 `map` frame。
+- `map -> base_link` 可用于判断机器人在地图中的当前位置。
+- 局部可达目标成功时，action 返回 `SUCCEEDED` 和 `error_code: 0`。
+- 目标执行失败时，阶段 03 应把该候选 frontier 降权或冷却，而不是立即认定系统不可用。
+- 任务状态变化或视觉发现目标时，阶段 03 可以取消当前 navigation goal。
+
+阶段 03 不应该依赖：
+
+- controller、planner、costmap 插件的内部参数。
+- `/cmd_vel_smoothed` 的具体数值作为业务状态。
+- collision monitor 的日志作为探索决策来源。
 
 ## 下一节入口
 
