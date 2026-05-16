@@ -65,6 +65,8 @@ error_code: 0
 - 初始 `odom.pose.pose.position.x`: `5.468872581415822e-17`
 - 目标执行后 `odom.pose.pose.position.x`: `0.4219161459857354`
 
+`/odom` 只证明机器人实际移动。`NavigateToPose` 使用 `frame_id: map` 时，目标误差应通过 `ros2 run tf2_ros tf2_echo map base_link` 判读，不能直接把 `/odom` 的 `x/y` 与 `map` 目标坐标相减。
+
 Nav2 日志关键行：
 
 ```text
