@@ -1,0 +1,73 @@
+site_name: KiBotTwo Docs
+docs_dir: docs
+exclude_docs: |
+  index.html
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.top
+    - toc.follow
+
+nav:
+  - 首页: index.md
+  - Embodied AI Roadmap:
+      - 总览: embodied-ai-roadmap/index.md
+      - 00 系统基线:
+          - 路线图: embodied-ai-roadmap/00-系统基线/roadmap.md
+          - 系统清单: embodied-ai-roadmap/00-系统基线/system-inventory.md
+          - 旗帜链路: embodied-ai-roadmap/00-系统基线/flag-pose-flow.md
+          - 文件计划: embodied-ai-roadmap/00-系统基线/file-plan.md
+          - 风险清单: embodied-ai-roadmap/00-系统基线/risk-register.md
+          - 验收: embodied-ai-roadmap/00-系统基线/acceptance.md
+          - 备注: embodied-ai-roadmap/00-系统基线/notes.md
+      - 01 SLAM 建图与定位:
+          - 路线图: embodied-ai-roadmap/01-SLAM-建图与定位/roadmap.md
+          - TF 方案: embodied-ai-roadmap/01-SLAM-建图与定位/tf-plan.md
+          - 运行检查: embodied-ai-roadmap/01-SLAM-建图与定位/runtime-checklist.md
+          - 文件计划: embodied-ai-roadmap/01-SLAM-建图与定位/file-plan.md
+          - 验收: embodied-ai-roadmap/01-SLAM-建图与定位/acceptance.md
+          - 备注: embodied-ai-roadmap/01-SLAM-建图与定位/notes.md
+      - 02 Nav2 导航接入:
+          - 路线图:
+              - 总览: embodied-ai-roadmap/02-Nav2-导航接入/roadmap/index.md
+              - 01 隔离旧控制链路: embodied-ai-roadmap/02-Nav2-导航接入/roadmap/01-隔离旧控制链路.md
+              - 02 增加 Nav2 参数: embodied-ai-roadmap/02-Nav2-导航接入/roadmap/02-增加-Nav2-参数.md
+              - 03 增加 Nav2 启动入口: embodied-ai-roadmap/02-Nav2-导航接入/roadmap/03-增加-Nav2-启动入口.md
+              - 04 验证 lifecycle 与目标入口: embodied-ai-roadmap/02-Nav2-导航接入/roadmap/04-验证-lifecycle-与目标入口.md
+              - 05 交付阶段 03 契约: embodied-ai-roadmap/02-Nav2-导航接入/roadmap/05-交付阶段-03-契约.md
+          - 参考:
+              - 依赖: embodied-ai-roadmap/02-Nav2-导航接入/reference/dependencies.md
+              - 控制权: embodied-ai-roadmap/02-Nav2-导航接入/reference/control-ownership.md
+              - Nav2 契约: embodied-ai-roadmap/02-Nav2-导航接入/reference/nav2-contract.md
+              - 文件计划: embodied-ai-roadmap/02-Nav2-导航接入/reference/file-plan.md
+          - 清单:
+              - Low: embodied-ai-roadmap/02-Nav2-导航接入/checklist/low.md
+              - Medium: embodied-ai-roadmap/02-Nav2-导航接入/checklist/medium.md
+              - High: embodied-ai-roadmap/02-Nav2-导航接入/checklist/high.md
+          - 证据:
+              - 使用记录: embodied-ai-roadmap/02-Nav2-导航接入/evidence/usage.md
+              - 验证日志: embodied-ai-roadmap/02-Nav2-导航接入/evidence/validation-log.md
+              - Diff 摘要: embodied-ai-roadmap/02-Nav2-导航接入/evidence/diff-summary.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
