@@ -28,7 +28,7 @@ source install/setup.bash
 ## 2. 确认没有残留仿真进程
 
 ```bash
-pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_node|controller_server|planner_server|bt_navigator|slam_toolbox'
+pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_node|controller_server|planner_server|bt_navigator|slam_toolbox|waypoint_follower|velocity_smoother|collision_monitor|lifecycle_manager'
 ```
 
 预期结果：
@@ -36,6 +36,13 @@ pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_
 - 没有输出。
 
 如果有旧进程，先停止旧 launch 或清理残留进程。残留的 `gz sim` 或 `bridge_node` 会造成 `/clock` 多 publisher，导致 TF 时间回跳。
+
+如果刚清理过残留 Nav2 进程，建议重启 ROS graph daemon，避免 `ros2 action list` 或 `ros2 node list` 看到已经退出的旧节点：
+
+```bash
+ros2 daemon stop
+ros2 daemon start
+```
 
 ## 3. 启动 Nav2 验证环境
 
@@ -51,6 +58,8 @@ ros2 launch kibot_one_sim nav2.launch.py use_rviz:=false
 source .vscode/project-terminal-init.sh
 source install/setup.bash
 ```
+
+如果多个 ROS2 CLI 检查命令并行执行时出现互相矛盾的结果，例如 `/odom` 可以 echo 但 `/clock` 暂时显示 unknown，先不要立刻判断系统失败。按第 2 节重启 daemon 后，串行执行本节检查命令。
 
 ## 4. 检查基础状态
 
@@ -73,6 +82,8 @@ ros2 lifecycle get /controller_server
 ros2 lifecycle get /planner_server
 ros2 lifecycle get /bt_navigator
 ros2 lifecycle get /waypoint_follower
+ros2 lifecycle get /velocity_smoother
+ros2 lifecycle get /collision_monitor
 ```
 
 预期结果：
@@ -232,7 +243,7 @@ ros2 topic echo /cmd_vel_smoothed --once
 确认没有残留：
 
 ```bash
-pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_node|controller_server|planner_server|bt_navigator|slam_toolbox'
+pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_node|controller_server|planner_server|bt_navigator|slam_toolbox|waypoint_follower|velocity_smoother|collision_monitor|lifecycle_manager'
 ```
 
 预期结果：

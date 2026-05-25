@@ -14,6 +14,80 @@
 
 ## 已执行
 
+## 2026-05-25 文档实操复核与修复
+
+按 roadmap 手写代码后，首次完整启动卡在：
+
+```text
+[collision_monitor]: Error while getting parameters: parameter 'observation_sources' is not initialized
+[lifecycle_manager_navigation]: Failed to bring up all requested nodes. Aborting bringup.
+```
+
+同时发现 `run_on_start` 只在 `nav2.launch.py` 声明，未在 `sim_with_bridge.launch.py` / `gazebo.launch.py` 中透传到 `gz sim -r`。
+
+参考 `feat/02-Nav2-导航接入` 后修复：
+
+- `collision_monitor` 增加 `observation_sources: ["scan"]` 和 `scan` source。
+- `nav2_params.yaml` 补齐 Jazzy bringup 管理的辅助 lifecycle nodes 参数。
+- `gazebo.launch.py` 增加 `run_on_start` 参数，按条件启动 `gz sim` 或 `gz sim -r`。
+- `sim_with_bridge.launch.py` 透传 `run_on_start`。
+- `CMakeLists.txt` 安装 `scripts/`。
+- roadmap 和 usage 文档补齐上述步骤。
+
+验证命令：
+
+```bash
+source .vscode/project-terminal-init.sh
+python3 -m py_compile \
+  src/kibot_one_sim/launch/nav2.launch.py \
+  src/kibot_one_sim/launch/gazebo.launch.py \
+  src/kibot_one_sim/launch/sim_with_bridge.launch.py
+python3 - <<'PY'
+import yaml
+from pathlib import Path
+yaml.safe_load(Path('src/kibot_one_sim/config/nav2_params.yaml').read_text())
+print('yaml ok')
+PY
+colcon build --packages-select kibot_one_sim
+source install/setup.bash
+ros2 launch kibot_one_sim nav2.launch.py --show-args
+ros2 launch kibot_one_sim nav2.launch.py use_rviz:=false
+```
+
+运行时检查：
+
+- `gz sim` 进程包含 `-r`。
+- `/clock` publisher count 为 `1`。
+- `controller_server`、`planner_server`、`bt_navigator`、`velocity_smoother`、`collision_monitor` 均为 `active [3]`。
+- `/navigate_to_pose` 和 `/navigate_through_poses` action 可见。
+- `/cmd_vel_smoothed` 有 `velocity_smoother` publisher 和 `kibot_one_bridge` subscriber。
+
+短距离目标：
+
+```bash
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+  "{pose: {header: {frame_id: map}, pose: {position: {x: 0.5, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}}"
+```
+
+结果：
+
+```text
+Goal finished with status: SUCCEEDED
+error_code: 0
+```
+
+目标完成后：
+
+- `/odom.pose.pose.position.x`: `0.4221665850315707`
+- `map -> base_link Translation`: `[0.412, 0.019, 0.000]`
+
+本轮验证中并行执行多个 ROS2 CLI 时曾出现 daemon/发现缓存短暂不一致。重启 daemon 后串行检查恢复稳定：
+
+```bash
+ros2 daemon stop
+ros2 daemon start
+```
+
 ```bash
 source .vscode/project-terminal-init.sh
 src/kibot_one_sim/scripts/check_nav2_runtime_deps.sh
