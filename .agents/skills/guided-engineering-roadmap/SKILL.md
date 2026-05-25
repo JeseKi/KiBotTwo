@@ -1,6 +1,6 @@
 ---
 name: guided-engineering-roadmap
-description: Use when the user wants a guided engineering tutorial or roadmap instead of immediate unstructured code generation. Trigger for staged roadmap chapters, baseline investigation, implementation walkthroughs, references, layered checklists, and evidence-backed part planning where concrete parts normally use proof/probe branches so the user can understand and progress part by part.
+description: Use when the user wants a guided engineering tutorial or roadmap instead of immediate unstructured code generation. Trigger for staged roadmap chapters, baseline investigation, implementation walkthroughs, references, layered checklists, evidence-backed part planning, probe branches, and post-documentation redo validation where an independent pass checks whether the roadmap can be followed to reach the expected result.
 ---
 
 # Guided Engineering Roadmap
@@ -72,7 +72,9 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 7. 如果当前 part 是实现引导，Agent 应该把实施步骤写进 `roadmap/`，把查阅性材料放进 `reference/`，把完成标准放进 `checklist/`。
 8. 如果是在写顶层全局规划，只做路线分解，不默认创建探针分支。
 9. 如果是在编写某个具体 part，默认启用探针分支模式并产出 `evidence/`；除非用户显式要求“不做探针”“只写静态规划”或当前环境无法安全创建分支。
-10. 每个 part 结束时，记录它解锁了哪些后续 part。
+10. 当前 part 的文档完成后，默认执行“文档复测闭环”：让一个独立复测者只按刚写好的文档在新分支或新 worktree 中实际编辑代码、构建和验证，检查文档是否足以达到预期结果。
+11. 根据复测反馈修正文档和 evidence；复测发现的问题不能只留在聊天里。
+12. 每个 part 结束时，记录它解锁了哪些后续 part。
 
 ## 推荐目录结构
 
@@ -305,6 +307,56 @@ high:
 - evidence 记录足够信息，让用户知道这条路线已经被试过。
 
 如果探针被跳过，必须在 `evidence/` 或当前回复中明确说明原因，并把 roadmap 标记为“未经过探针验证”。
+
+## 文档复测闭环
+
+探针分支证明“这条实现路线能做出来”；文档复测闭环证明“读者只看 roadmap/evidence 能不能重新做出来”。两者职责不同。编写可运行系统、配置、launch、API、前端、仿真或任何可验证行为的具体 part 时，完成文档后默认执行复测闭环。
+
+复测闭环的目标：
+
+- 验证 `roadmap/` 中的步骤是否足以让人手写代码。
+- 验证 `evidence/usage.md` 的命令是否可复现。
+- 发现文档遗漏、顺序错误、参数不完整、验收条件不清或清理步骤不足。
+- 根据复测结果修正文档，而不是为了通过验证直接从功能分支同步代码。
+
+默认流程：
+
+1. 在当前工作基础上创建临时复测分支或 worktree，例如 `test/<part>-roadmap-redo-check` 或 `tmp/<part>-roadmap-redo-check`。
+2. 如果当前请求和工具策略允许使用 sub agent，启动一个 sub agent 执行复测；否则由当前 Agent 在临时分支中执行同样流程，并在 `evidence/` 里说明没有使用 sub agent 的原因。
+3. 给复测者的任务必须要求它只按当前文档操作，不读取目标功能分支的最终代码来补答案。
+4. 复测者可以在临时分支中实际编辑功能代码、配置和测试文件；这些代码只用于验证文档，不直接进入正式分支。
+5. 复测者必须运行文档承诺的构建、测试、launch、CLI、手动验证或最小成功用例。
+6. 复测者发现不一致时，记录复现命令、实际结果、文档缺口和可能解决方案。
+7. 主 Agent 根据复测反馈修正 `roadmap/`、`reference/`、`checklist/` 或 `evidence/usage.md`，然后必要时再复测一次关键路径。
+8. 复测通过后，清理临时 launch、服务、仿真、dev server、后台进程、临时 worktree 和临时分支。
+9. 正式分支只保留文档改动和用户明确要求保留的代码；复测分支中的功能代码不要混入正式交付，除非用户明确要求。
+
+给 sub agent 的复测 prompt 应该尽量像真实读者任务，而不是泄露答案。它应该包含：
+
+```text
+请只按 docs/<目标>/<part>/ 中的 roadmap 和 evidence 操作。
+不要从功能来源分支同步代码。
+在新分支或临时 worktree 中实际编辑代码并运行验证。
+如果文档步骤和实际结果不一致，记录不一致、复现命令和可能解决方案。
+验证后清理残留进程。
+最终报告通过/不通过、关键命令结果、发现的问题和写入文件。
+```
+
+复测记录放置规则：
+
+- 复测通过或失败的长期证据写入 `evidence/validation-log.md`。
+- 可复现操作变化写入 `evidence/usage.md`。
+- 如果需要保留临时问题清单，可写入 `evidence/redo-check.md` 或用户指定文件；不要把临时草稿默认放进主阅读路径。
+- 提交时按用户要求控制范围；如果用户只要求提交 `roadmap/` 和 `evidence/`，不要把临时复测报告或问题草稿混入 commit。
+
+复测失败的处理：
+
+- 不要把失败包装成完成。
+- 先判断失败来自文档遗漏、实现错误、环境依赖、测试不稳定还是清理残留。
+- 如果是文档遗漏，修文档并重新验证受影响步骤。
+- 如果是环境依赖，补 `reference/dependencies.md` 或 `evidence/usage.md` 的依赖检查和安装说明。
+- 如果是目标行为边界，补 `roadmap/index.md` 的系统预期状态、完成边界和失败判读。
+- 如果复测无法安全完成，记录阻塞条件、已执行命令、最后可信状态和下一步解法。
 
 ## 阶段类型规则
 
