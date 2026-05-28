@@ -33,7 +33,7 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 7. 如果当前 part 是实现引导，Agent 应该把实施步骤写进 `roadmap/`，把查阅性材料放进 `reference/`，把完成标准放进 `checklist/`。
 8. 如果是在写顶层全局规划，只做路线分解，不默认创建探针分支。
 9. 如果是在编写某个具体 part，默认启用探针分支模式并产出 `evidence/`；除非用户显式要求“不做探针”“只写静态规划”或当前环境无法安全创建分支。
-10. 当前 part 的文档完成后，默认执行“文档复测闭环”：让一个独立复测者只按刚写好的文档在新分支或新 worktree 中实际编辑代码、构建和验证，检查文档是否足以达到预期结果。
+10. 当前 part 的文档完成后，默认执行“文档复测闭环”：让一个独立复测者只按刚写好的文档在新分支或新 worktree 中实际编辑代码、构建和验证；如果存在成品分支或探针分支，复测产出的非 `docs/` diff 必须与成品分支相对同一 baseline 的非 `docs/` diff 完全一致。
 11. 根据复测反馈修正文档和 evidence；复测发现的问题不能只留在聊天里。
 12. 每个 part 结束时，记录它解锁了哪些后续 part。
 
