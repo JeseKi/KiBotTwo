@@ -27,7 +27,7 @@
 因此补充：
 
 - 新增 `evidence/reference-runtime.patch`，记录共同 baseline `e9b6fa40f7b269d098611b64f983d914f916b84e` 到 `feat/02-Nav2-导航接入` 的阶段 02 runtime 完整 patch。
-- 新增 `reference/final-runtime/`，保存成品分支 runtime 文件完整副本，用于逐文件核对最终合并结果。
+- 新增 `reference/final-runtime/`，保存成品分支 runtime 文件的 `.bak` 完整副本，用于逐文件核对最终合并结果。
 - `evidence/usage.md` 增加 runtime patch 完全一致审计步骤。
 - `roadmap/index.md`、`roadmap/02-增加-Nav2-参数.md` 和 `roadmap/03-增加-Nav2-启动入口.md` 明确：runtime 文件必须与成品分支完全一致，只有 `docs/` 下的差异可以不同。
 - `reference/file-plan.md` 记录成品一致性边界和需要完全一致的 runtime 文件清单。

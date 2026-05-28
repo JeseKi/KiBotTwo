@@ -10,7 +10,7 @@
 | `docs/embodied-ai-roadmap/02-Nav2-导航接入/evidence/reference-runtime.patch` | 阶段 02 成品分支的完整 runtime patch，用于文档复测完全一致审计 |
 | `docs/embodied-ai-roadmap/02-Nav2-导航接入/roadmap/` | 阶段 02 主阅读路径 |
 | `docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/` | 阶段 02 接口和系统事实 |
-| `docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/` | 成品分支 runtime 文件的完整副本，作为手写合并后的最终答案 |
+| `docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/` | 成品分支 runtime 文件的 `.bak` 完整副本，作为手写合并后的最终答案 |
 | `docs/embodied-ai-roadmap/02-Nav2-导航接入/checklist/` | 阶段 02 分层验收 |
 | `docs/embodied-ai-roadmap/02-Nav2-导航接入/evidence/` | 阶段 02 验证和 diff 摘要 |
 
@@ -47,7 +47,7 @@ src/kibot_one_sim/scripts/check_nav2_runtime_deps.sh
 
 只有 `docs/` 下的差异可以不同。runtime 文件不允许用“功能等价”替代完全一致。
 
-如果手写片段合并时不确定最终结构，以 `final-runtime/` 里的同名文件为准。`reference-runtime.patch` 用于 patch 级审计，`final-runtime/` 用于逐文件核对。
+如果手写片段合并时不确定最终结构，以 `final-runtime/` 里的同名 `.bak` 文件为准。`reference-runtime.patch` 用于 patch 级审计，`final-runtime/` 用于逐文件核对。
 
 ## 暂不修改
 

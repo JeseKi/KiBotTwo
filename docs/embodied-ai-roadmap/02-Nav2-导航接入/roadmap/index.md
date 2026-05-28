@@ -61,13 +61,13 @@ feat/02-Nav2-导航接入
 
 读者按本 roadmap 从共同 baseline 手写完成后，runtime 文件相对 baseline 的 diff 必须与 `../evidence/reference-runtime.patch` 完全一致。只有 `docs/` 下的差异可以不同。
 
-成品 runtime 文件完整副本放在：
+成品 runtime 文件的 `.bak` 完整副本放在：
 
 ```text
 ../reference/final-runtime/src/kibot_one_sim/
 ```
 
-章节正文用增量片段解释为什么这样写；最终合并结果以 `final-runtime/` 中的同名文件为准。换句话说，读者可以先按章节理解和手写，再用 `final-runtime/` 做逐文件核对，最后用 `reference-runtime.patch` 做 patch 级审计。
+章节正文用增量片段解释为什么这样写；最终合并结果以 `final-runtime/` 中的同名 `.bak` 文件为准。换句话说，读者可以先按章节理解和手写，再用 `final-runtime/` 做逐文件核对，最后用 `reference-runtime.patch` 做 patch 级审计。
 
 共同 baseline：
 

@@ -36,13 +36,13 @@ git diff --binary --no-ext-diff \
 
 文档复测时，读者按 roadmap 手写出的 runtime diff 必须与该 patch 完全一致。只有 `docs/` 下的差异可以不同。
 
-成品 runtime 文件完整副本已固化在：
+成品 runtime 文件的 `.bak` 完整副本已固化在：
 
 ```text
 docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/src/kibot_one_sim/
 ```
 
-`roadmap/` 章节里的代码片段用于解释实现过程；最终合并结果以这些完整副本为准。
+`roadmap/` 章节里的代码片段用于解释实现过程；最终合并结果以这些 `.bak` 完整副本为准。
 
 ## 文档
 

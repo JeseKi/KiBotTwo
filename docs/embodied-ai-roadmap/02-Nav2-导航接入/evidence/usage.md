@@ -49,7 +49,7 @@ for path in \
   scripts/check_nav2_runtime_deps.sh
 do
   diff -u \
-    "docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/src/kibot_one_sim/${path}" \
+    "docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/src/kibot_one_sim/${path}.bak" \
     "src/kibot_one_sim/${path}"
 done
 ```
