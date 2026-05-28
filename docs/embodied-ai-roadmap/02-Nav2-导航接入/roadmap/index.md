@@ -37,13 +37,45 @@ flowchart TD
 - `../reference/control-ownership.md`
 - `../reference/nav2-contract.md`
 - `../reference/file-plan.md`
+- `../reference/final-runtime/README.md`
+- `../evidence/reference-runtime.patch`
 
 ## 本阶段已落地文件
 
+- `src/kibot_one_sim/CMakeLists.txt`
 - `src/kibot_one_sim/config/nav2_params.yaml`
 - `src/kibot_one_sim/config/ros_gz_bridge.yaml`
+- `src/kibot_one_sim/launch/gazebo.launch.py`
 - `src/kibot_one_sim/launch/nav2.launch.py`
+- `src/kibot_one_sim/launch/sim_with_bridge.launch.py`
 - `src/kibot_one_sim/package.xml`
+- `src/kibot_one_sim/scripts/check_nav2_runtime_deps.sh`
+
+## 成品一致性要求
+
+本阶段不是只要求“写出一套能跑的近似配置”。阶段 02 已有成品分支：
+
+```text
+feat/02-Nav2-导航接入
+```
+
+读者按本 roadmap 从共同 baseline 手写完成后，runtime 文件相对 baseline 的 diff 必须与 `../evidence/reference-runtime.patch` 完全一致。只有 `docs/` 下的差异可以不同。
+
+成品 runtime 文件完整副本放在：
+
+```text
+../reference/final-runtime/src/kibot_one_sim/
+```
+
+章节正文用增量片段解释为什么这样写；最终合并结果以 `final-runtime/` 中的同名文件为准。换句话说，读者可以先按章节理解和手写，再用 `final-runtime/` 做逐文件核对，最后用 `reference-runtime.patch` 做 patch 级审计。
+
+共同 baseline：
+
+```text
+e9b6fa40f7b269d098611b64f983d914f916b84e
+```
+
+对齐检查命令见 `../evidence/usage.md` 的“runtime patch 完全一致审计”。如果这个审计不通过，即使某次 launch 或短目标碰巧通过，也不能宣称本阶段文档复测通过。
 
 ## 使用方式
 

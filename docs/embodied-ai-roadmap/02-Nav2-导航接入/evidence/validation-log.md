@@ -2,7 +2,7 @@
 
 ## 当前结论
 
-阶段 02 已通过运行时验收：
+阶段 02 的成品分支已通过运行时验收：
 
 - Nav2 / FastCDR 运行依赖检查通过。
 - Gazebo、ros_gz_bridge、slam_toolbox 和 Nav2 可由 `nav2.launch.py` 一起启动。
@@ -12,7 +12,27 @@
 - global costmap 使用 rolling obstacle/inflation 配置，不再被 SLAM 初始小地图边界阻塞。
 - Nav2 速度经 `/cmd_vel_smoothed` 桥接到 Gazebo，`/odom` 实际前进。
 
+文档复测结论已收紧：
+
+- 旧记录证明过成品分支 runtime 可用，但不足以证明“只按文档手写就能生成完全一致的 runtime diff”。
+- 从 2026-05-28 起，阶段 02 文档复测必须先通过 `evidence/reference-runtime.patch` 的完全一致审计，再进入 runtime 验收。
+- runtime 文件相对 baseline 的 patch 只要与 `reference-runtime.patch` 有任何差异，即使短目标运行成功，也不能宣称文档复测通过。
+
 ## 已执行
+
+## 2026-05-28 文档复测规则修复
+
+本轮复核发现，之前的文档复测在失败后参考了 `feat/02-Nav2-导航接入` 修复 runtime 问题，但没有再从干净 baseline 出发，只按修正后的文档重新生成 runtime 文件并与成品分支做完全一致审计。
+
+因此补充：
+
+- 新增 `evidence/reference-runtime.patch`，记录共同 baseline `e9b6fa40f7b269d098611b64f983d914f916b84e` 到 `feat/02-Nav2-导航接入` 的阶段 02 runtime 完整 patch。
+- 新增 `reference/final-runtime/`，保存成品分支 runtime 文件完整副本，用于逐文件核对最终合并结果。
+- `evidence/usage.md` 增加 runtime patch 完全一致审计步骤。
+- `roadmap/index.md`、`roadmap/02-增加-Nav2-参数.md` 和 `roadmap/03-增加-Nav2-启动入口.md` 明确：runtime 文件必须与成品分支完全一致，只有 `docs/` 下的差异可以不同。
+- `reference/file-plan.md` 记录成品一致性边界和需要完全一致的 runtime 文件清单。
+
+这次修复没有重新宣称文档复测已经通过；它修正的是复测通过标准。后续复测必须从 baseline 重做，并让生成的 runtime patch 与 `reference-runtime.patch` 无差异。
 
 ## 2026-05-25 文档实操复核与修复
 

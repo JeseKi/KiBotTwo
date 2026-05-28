@@ -1,0 +1,47 @@
+# mypy: disable-error-code="import-untyped"
+
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory # type: ignore
+from launch import LaunchDescription # type: ignore
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription # type: ignore
+from launch.launch_description_sources import PythonLaunchDescriptionSource # type: ignore
+from launch.substitutions import LaunchConfiguration # type: ignore
+from ros_gz_bridge.actions import RosGzBridge # type: ignore
+
+def generate_launch_description() -> LaunchDescription:
+    pkg_share = Path(get_package_share_directory('kibot_one_sim'))
+    default_world = pkg_share / 'worlds' / 'kibot_one.world.sdf'
+    gazebo_launch = pkg_share / 'launch' / 'gazebo.launch.py'
+    bridge_config = pkg_share / 'config' / 'ros_gz_bridge.yaml'
+
+    world_arg = DeclareLaunchArgument(
+        'world',
+        default_value=str(default_world),
+        description='Gazebo 世界文件的绝对路径。'
+    )
+    run_on_start_arg = DeclareLaunchArgument(
+        'run_on_start',
+        default_value='false',
+        description='是否使用 -r 让 Gazebo 启动后立即运行仿真。',
+    )
+
+    start_gazebo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(str(gazebo_launch)),
+        launch_arguments={
+            'world': LaunchConfiguration('world'),
+            'run_on_start': LaunchConfiguration('run_on_start'),
+        }.items()
+    )
+
+    start_bridge = RosGzBridge(
+        bridge_name='kibot_one_bridge',
+        config_file=str(bridge_config)
+    )
+
+    return LaunchDescription([
+        world_arg,
+        run_on_start_arg,
+        start_gazebo,
+        start_bridge,
+    ])

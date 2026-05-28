@@ -25,7 +25,82 @@ source install/setup.bash
 
 如果依赖检查失败，先按 `../reference/dependencies.md` 安装或升级依赖，不要继续验证导航行为。
 
-## 2. 确认没有残留仿真进程
+## 2. runtime patch 完全一致审计
+
+阶段 02 已有成品分支 `feat/02-Nav2-导航接入`。按 roadmap 手写完成后，runtime 文件必须与成品分支相对共同 baseline 的 patch 完全一致。
+
+成品分支的最终 runtime 文件也已经放在：
+
+```text
+docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/
+```
+
+先做逐文件核对：
+
+```bash
+for path in \
+  CMakeLists.txt \
+  package.xml \
+  config/nav2_params.yaml \
+  config/ros_gz_bridge.yaml \
+  launch/gazebo.launch.py \
+  launch/nav2.launch.py \
+  launch/sim_with_bridge.launch.py \
+  scripts/check_nav2_runtime_deps.sh
+do
+  diff -u \
+    "docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/src/kibot_one_sim/${path}" \
+    "src/kibot_one_sim/${path}"
+done
+```
+
+预期结果：
+
+- 没有任何输出。
+- 命令退出码为 `0`。
+
+如果这里有差异，说明手写结果还没有合并到成品状态。先按 diff 修正对应文件，再继续下面的 patch 审计。
+
+共同 baseline：
+
+```text
+e9b6fa40f7b269d098611b64f983d914f916b84e
+```
+
+逐文件核对通过后，再在项目根目录执行 patch 审计：
+
+```bash
+baseline=e9b6fa40f7b269d098611b64f983d914f916b84e
+redo_patch=/tmp/kibot_stage02_redo_runtime.patch
+runtime_paths=(
+  src/kibot_one_sim/CMakeLists.txt
+  src/kibot_one_sim/config/nav2_params.yaml
+  src/kibot_one_sim/config/ros_gz_bridge.yaml
+  src/kibot_one_sim/launch/gazebo.launch.py
+  src/kibot_one_sim/launch/nav2.launch.py
+  src/kibot_one_sim/launch/sim_with_bridge.launch.py
+  src/kibot_one_sim/package.xml
+  src/kibot_one_sim/scripts/check_nav2_runtime_deps.sh
+)
+
+# 让 git diff 能看到新建但尚未 add 的文件；这不会真正暂存内容。
+git add -N -- "${runtime_paths[@]}" 2>/dev/null || true
+
+git diff --binary --no-ext-diff "${baseline}" -- "${runtime_paths[@]}" > "${redo_patch}"
+
+diff -u \
+  docs/embodied-ai-roadmap/02-Nav2-导航接入/evidence/reference-runtime.patch \
+  "${redo_patch}"
+```
+
+预期结果：
+
+- `diff -u` 没有任何输出。
+- 命令退出码为 `0`。
+
+如果有任何输出，说明当前 runtime 实现与成品分支不一致。先回到 roadmap 修正文档或手写结果，不要继续做 lifecycle/runtime 验收。只有 `docs/` 下的差异可以不同；本节列出的 runtime 文件必须完全一致。
+
+## 3. 确认没有残留仿真进程
 
 ```bash
 pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_node|controller_server|planner_server|bt_navigator|slam_toolbox|waypoint_follower|velocity_smoother|collision_monitor|lifecycle_manager'
@@ -44,7 +119,7 @@ ros2 daemon stop
 ros2 daemon start
 ```
 
-## 3. 启动 Nav2 验证环境
+## 4. 启动 Nav2 验证环境
 
 建议先不启动 RViz，减少变量：
 
@@ -59,9 +134,9 @@ source .vscode/project-terminal-init.sh
 source install/setup.bash
 ```
 
-如果多个 ROS2 CLI 检查命令并行执行时出现互相矛盾的结果，例如 `/odom` 可以 echo 但 `/clock` 暂时显示 unknown，先不要立刻判断系统失败。按第 2 节重启 daemon 后，串行执行本节检查命令。
+如果多个 ROS2 CLI 检查命令并行执行时出现互相矛盾的结果，例如 `/odom` 可以 echo 但 `/clock` 暂时显示 unknown，先不要立刻判断系统失败。按第 3 节重启 daemon 后，串行执行本节检查命令。
 
-## 4. 检查基础状态
+## 5. 检查基础状态
 
 检查 `/clock`：
 
@@ -115,7 +190,7 @@ ros2 topic info /cmd_vel_smoothed -v | grep -A2 'Node name: kibot_one_bridge'
 - 能看到 `kibot_one_bridge`。
 - Endpoint type 应为 `SUBSCRIPTION`。
 
-## 5. 记录初始里程计
+## 6. 记录初始里程计
 
 ```bash
 ros2 topic echo /odom --once
@@ -129,9 +204,9 @@ pose.pose.position.x
 
 刚启动时通常接近 `0`。
 
-这里的 `/odom` 只用于判断机器人是否真实移动，不用于判断 `map` 坐标目标误差。`NavigateToPose` 的目标是 `frame_id: map`，目标误差应使用第 8 节的 TF 检查。
+这里的 `/odom` 只用于判断机器人是否真实移动，不用于判断 `map` 坐标目标误差。`NavigateToPose` 的目标是 `frame_id: map`，目标误差应使用第 9 节的 TF 检查。
 
-## 6. 发送短距离目标
+## 7. 发送短距离目标
 
 发送一个 0.5m 的 `NavigateToPose` 目标：
 
@@ -157,7 +232,7 @@ Goal finished with status: SUCCEEDED
 grep -E 'GridBased plugin failed|Failed to make progress|Robot is out of bounds|Detected jump back in time|TF_OLD_DATA|Error advertising' ~/.ros/log/latest/*/*.log
 ```
 
-## 7. 确认机器人实际移动
+## 8. 确认机器人实际移动
 
 目标完成后再次读取 `/odom`：
 
@@ -180,7 +255,7 @@ pose.pose.position.x
 
 但不要把 `/odom` 的 `x/y` 直接和 `map` 目标坐标相减。SLAM 会发布 `map -> odom` 修正，`odom` 坐标和 `map` 坐标不是同一个坐标系。
 
-## 8. 确认 map 坐标目标误差
+## 9. 确认 map 坐标目标误差
 
 如果要确认机器人是否到达 `map` 坐标目标，用 TF 查询 `map -> base_link`：
 
@@ -188,7 +263,7 @@ pose.pose.position.x
 ros2 run tf2_ros tf2_echo map base_link
 ```
 
-对于第 6 节的目标 `(0.5, 0.0)`，预期 `Translation` 接近：
+对于第 7 节的目标 `(0.5, 0.0)`，预期 `Translation` 接近：
 
 ```text
 x: 0.5
@@ -204,7 +279,7 @@ yaw_goal_tolerance: 0.25
 
 因此目标完成后，`map -> base_link` 的平面距离误差应在约 `0.10m` 内，朝向误差应在约 `0.25rad` 内。
 
-## 9. 可选：观察速度链路
+## 10. 可选：观察速度链路
 
 目标执行过程中可以观察 Nav2 输出：
 
@@ -219,10 +294,11 @@ ros2 topic echo /cmd_vel_smoothed --once
 
 不要用 `/cmd_vel` 判断阶段 02 是否正常。阶段 02 的 Gazebo 控制入口是 `/cmd_vel_smoothed`。
 
-## 10. 通过标准
+## 11. 通过标准
 
 本探针响应符合预期，需要同时满足：
 
+- runtime patch 与 `reference-runtime.patch` 完全一致。
 - 依赖检查通过。
 - `/clock` publisher count 为 `1`。
 - Nav2 lifecycle nodes 为 `active [3]`。
@@ -236,7 +312,7 @@ ros2 topic echo /cmd_vel_smoothed --once
 
 系统预期状态、完成边界和 `(5.0, 0.0)` 这类压力目标的判读，统一以 `../roadmap/index.md` 为准；本文件只保留具体操作步骤。
 
-## 11. 收尾
+## 12. 收尾
 
 验证完成后，在启动 launch 的终端按 `Ctrl+C`。
 

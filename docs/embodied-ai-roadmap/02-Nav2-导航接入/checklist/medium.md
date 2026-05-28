@@ -1,5 +1,6 @@
 # Medium 验收：功能完整
 
+- runtime patch 与 `evidence/reference-runtime.patch` 完全一致；如果不一致，不继续做运行时通过判定。
 - `ros2 launch kibot_one_sim nav2.launch.py` 能启动 Gazebo、bridge、SLAM 和 Nav2。
 - Nav2 lifecycle nodes 能进入 active。
 - `/navigate_to_pose` action 存在。

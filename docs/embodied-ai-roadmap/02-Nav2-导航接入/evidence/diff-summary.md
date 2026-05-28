@@ -10,6 +10,40 @@
 - 修改 `src/kibot_one_sim/CMakeLists.txt`，安装 `scripts/` 目录。
 - 修改 `src/kibot_one_sim/launch/gazebo.launch.py` 和 `sim_with_bridge.launch.py`，增加 `run_on_start`，让 02 可以默认运行 Gazebo 仿真而不是停在暂停状态。
 
+## 完整 runtime patch
+
+阶段 02 的 runtime 成品 patch 已固化在：
+
+```text
+docs/embodied-ai-roadmap/02-Nav2-导航接入/evidence/reference-runtime.patch
+```
+
+它来自：
+
+```bash
+git diff --binary --no-ext-diff \
+  e9b6fa40f7b269d098611b64f983d914f916b84e...feat/02-Nav2-导航接入 \
+  -- \
+  src/kibot_one_sim/CMakeLists.txt \
+  src/kibot_one_sim/config/nav2_params.yaml \
+  src/kibot_one_sim/config/ros_gz_bridge.yaml \
+  src/kibot_one_sim/launch/gazebo.launch.py \
+  src/kibot_one_sim/launch/nav2.launch.py \
+  src/kibot_one_sim/launch/sim_with_bridge.launch.py \
+  src/kibot_one_sim/package.xml \
+  src/kibot_one_sim/scripts/check_nav2_runtime_deps.sh
+```
+
+文档复测时，读者按 roadmap 手写出的 runtime diff 必须与该 patch 完全一致。只有 `docs/` 下的差异可以不同。
+
+成品 runtime 文件完整副本已固化在：
+
+```text
+docs/embodied-ai-roadmap/02-Nav2-导航接入/reference/final-runtime/src/kibot_one_sim/
+```
+
+`roadmap/` 章节里的代码片段用于解释实现过程；最终合并结果以这些完整副本为准。
+
 ## 文档
 
 - 新增阶段 02 的 `roadmap/`、`reference/`、`checklist/` 和 `evidence/`。

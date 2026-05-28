@@ -28,6 +28,7 @@ Nav2 lifecycle active
 本节需要参考：
 
 - `../evidence/usage.md`
+- `../evidence/reference-runtime.patch`
 - `../checklist/low.md`
 - `../checklist/medium.md`
 
@@ -81,7 +82,19 @@ fi
 
 这一步是为了提前发现运行库不一致。它失败时，不要继续看 YAML。
 
-## 第二步：启动前清理旧进程
+## 第二步：先做 runtime patch 完全一致审计
+
+运行时验收必须建立在同一套 runtime 文件上。按 `../evidence/usage.md` 的“runtime patch 完全一致审计”生成当前实现 patch，并与：
+
+```text
+../evidence/reference-runtime.patch
+```
+
+比较。`diff -u` 必须没有任何输出。
+
+如果这里不一致，不要继续启动 Nav2。先回到前面的 roadmap 修正文档或手写结果。否则你验证的是另一套实现，`controller_server active`、`planner_server inactive` 这类状态就不能和成品分支的验收结果直接比较。
+
+## 第三步：启动前清理旧进程
 
 先检查是否有旧仿真：
 
@@ -93,7 +106,7 @@ pgrep -af 'ros2 launch kibot_one_sim nav2.launch.py|gz sim|ros_gz_bridge|bridge_
 
 如果这里还有旧 `gz sim` 或 `bridge_node`，后面 `/clock` 可能出现多个 publisher。多个 `/clock` 会导致 TF 时间回跳，表现为 Nav2 偶发失败。
 
-## 第三步：启动完整环境
+## 第四步：启动完整环境
 
 启动：
 
@@ -112,7 +125,7 @@ source install/setup.bash
 
 如果 launch 直接报 FastCDR 依赖错误，回到第一步修依赖。
 
-## 第四步：检查仿真时间只有一个来源
+## 第五步：检查仿真时间只有一个来源
 
 运行：
 
@@ -128,7 +141,7 @@ Publisher count: 1
 
 这一步看起来很小，但很关键。Nav2、SLAM 和 TF 都依赖时间一致性。如果 `/clock` 有多个 publisher，后续所有行为都不可信。
 
-## 第五步：检查 Nav2 lifecycle
+## 第六步：检查 Nav2 lifecycle
 
 先检查 controller：
 
@@ -156,7 +169,7 @@ active [3]
 
 `active [3]` 表示 lifecycle manager 已经把节点激活。节点存在但不是 active 时，action 可能存在，但不能稳定执行目标。
 
-## 第六步：检查 action 入口
+## 第七步：检查 action 入口
 
 先确认 action 名称：
 
@@ -178,7 +191,7 @@ ros2 action info /navigate_to_pose
 
 这一步确认的是阶段 03 将来要依赖的入口，而不是 Nav2 内部实现。
 
-## 第七步：检查速度链路
+## 第八步：检查速度链路
 
 阶段 02 的 Gazebo 速度入口是 `/cmd_vel_smoothed`。检查 bridge 是否订阅它：
 
@@ -197,7 +210,7 @@ Endpoint type: SUBSCRIPTION
 
 不要用 `/cmd_vel` 判断本阶段是否正常。旧系统使用 `/cmd_vel`，阶段 02 的 Nav2 验收使用 `/cmd_vel_smoothed`。
 
-## 第八步：发送最小目标
+## 第九步：发送最小目标
 
 先发一个近距离目标：
 
@@ -218,7 +231,7 @@ error_code: 0
 
 如果是 `ABORTED`，不要把本阶段记为通过。先看日志里是 planner 失败、controller 失败，还是 TF/clock 问题。
 
-## 第九步：用 odom 证明机器人真的动了
+## 第十步：用 odom 证明机器人真的动了
 
 目标完成后读取：
 
@@ -230,7 +243,7 @@ ros2 topic echo /odom --once
 
 但 `/odom` 不是 `map` 坐标。不要把 `/odom.pose.pose.position.x` 直接和目标 `map.x` 相减。
 
-## 第十步：用 TF 证明接近 map 目标
+## 第十一步：用 TF 证明接近 map 目标
 
 目标误差要看：
 
@@ -255,7 +268,7 @@ general_goal_checker:
 
 也就是说，平面距离误差约 `0.10m` 内是合理的。
 
-## 第十一步：理解 105 不是启动失败
+## 第十二步：理解 105 不是启动失败
 
 如果你发送远端目标，比如：
 
