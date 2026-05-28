@@ -134,7 +134,7 @@ docs/<目标>-tutorial/
 - 必须能让读者把增量片段合并成与成品分支一致的最终文件。
 - 如果当前 part 有成品分支或探针分支，最终 artifact 对应的非 `docs/` 文件必须在文档复测中与成品分支完全一致。
 
-如果当前 part 是从成品分支或探针分支的 diff 提炼教程，必须把所有非 `docs/` diff 涉及的最终文件副本放入：
+如果当前 part 是从成品分支或探针分支的 diff 提炼教程，必须把所有非 `docs/` diff 涉及的最终文件以 `.bak` 后缀放入：
 
 ```text
 reference/final-runtime/
@@ -143,11 +143,11 @@ reference/final-runtime/
 目录结构应保留项目相对路径，例如：
 
 ```text
-reference/final-runtime/src/example_pkg/config/app.yaml
-reference/final-runtime/src/example_pkg/launch/app.launch.py
+reference/final-runtime/src/example_pkg/config/app.yaml.bak
+reference/final-runtime/src/example_pkg/launch/app.launch.py.bak
 ```
 
-roadmap 章节仍然按增量片段解释实现过程；`reference/final-runtime/` 是最终合并结果和复测 oracle，不能省略。
+roadmap 章节仍然按增量片段解释实现过程；`reference/final-runtime/` 中的 `.bak` 文件是最终合并结果和复测 oracle，不能省略。
 
 章节粒度规则：
 
