@@ -48,7 +48,8 @@
 如果当前 part 有成品分支、探针分支或参考实现分支，例如 `feat/<part>`，文档复测通过必须同时满足：
 
 1. 运行时验收通过。
-2. 复测分支中除 `docs/` 外的所有文件变更，与成品分支相对同一 baseline 的变更完全一致。
+2. 文档包含 `reference/final-runtime/`，其中保存所有非 `docs/` diff 涉及文件的最终副本。
+3. 复测分支中除 `docs/` 外的所有文件变更，与成品分支相对同一 baseline 的变更完全一致。
 
 不允许用“功能等价”“可解释差异”替代完全一致。只有 `docs/` 下的差异可以不一致，因为复测后的文档可能已经被修正。
 
@@ -60,15 +61,19 @@
 4. 复测者可以在临时分支中实际编辑功能代码、配置和测试文件；这些代码只用于验证文档，不直接进入正式分支。
 5. 复测者必须运行文档承诺的构建、测试、launch、CLI、手动验证或最小成功用例。
 6. 复测者发现不一致时，记录复现命令、实际结果、文档缺口和可能解决方案。
-7. 如果有成品分支或探针分支，主 Agent 必须对比“成品分支相对 baseline 的非 `docs/` diff”和“复测分支相对同一 baseline 的非 `docs/` diff”。两者必须完全一致。
-8. 如果第 7 步不一致，复测失败。先修正文档，再从干净 baseline 重新复测；不要在复测分支里直接参考成品分支补代码后宣称通过。
-9. 主 Agent 根据复测反馈修正 `roadmap/`、`reference/`、`checklist/` 或 `evidence/usage.md`，然后重新复测受影响路径。
-10. 复测通过后，清理临时 launch、服务、仿真、dev server、后台进程、临时 worktree 和临时分支。
-11. 正式分支只保留文档改动和用户明确要求保留的代码；复测分支中的功能代码不要混入正式交付，除非用户明确要求。
+7. 如果有成品分支或探针分支，主 Agent 必须先核对复测分支的非 `docs/` 文件与 `reference/final-runtime/` 下对应文件完全一致。
+8. 主 Agent 必须再对比“成品分支相对 baseline 的非 `docs/` diff”和“复测分支相对同一 baseline 的非 `docs/` diff”。两者必须完全一致。
+9. 如果第 7 或第 8 步不一致，复测失败。先修正文档，再从干净 baseline 重新复测；不要在复测分支里直接参考成品分支补代码后宣称通过。
+10. 主 Agent 根据复测反馈修正 `roadmap/`、`reference/`、`checklist/` 或 `evidence/usage.md`，然后重新复测受影响路径。
+11. 复测通过后，清理临时 launch、服务、仿真、dev server、后台进程、临时 worktree 和临时分支。
+12. 正式分支只保留文档改动和用户明确要求保留的代码；复测分支中的功能代码不要混入正式交付，除非用户明确要求。
 
 推荐的完全一致审计方式：
 
 ```bash
+# 先逐文件核对最终副本。
+diff -ru "docs/<目标>/<part>/reference/final-runtime" <redo-worktree对应路径>
+
 # baseline 是成品分支和复测分支共同的起点。
 git diff --binary --no-ext-diff "${baseline}...${reference_branch}" -- . ':(exclude)docs/**' > /tmp/reference.diff
 git diff --binary --no-ext-diff "${baseline}...${redo_branch}" -- . ':(exclude)docs/**' > /tmp/redo.diff
