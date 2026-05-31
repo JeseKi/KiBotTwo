@@ -322,3 +322,71 @@ patch 审计：
 - sub agent 已删除临时 diff 文件。
 - 仿真残留 `gz sim server` 已终止。
 - 最终检查未见目标 ROS/Gazebo 残留进程，仅匹配到检查命令自身。
+
+## 可阅读性重写后的严格复测通过记录
+
+时间：2026-05-31 14:45 CST。
+
+可阅读性重写者：独立 sub agent `019e7cc0-2d17-7ad3-a064-6da4718b7855`。
+
+重写口径：
+
+- 只修改 `roadmap/*.md`。
+- 不修改 runtime、reference、checklist、evidence。
+- 保留代码片段、文件路径、实现顺序、验证命令、完成边界和关键技术判断。
+- 从 roadmap 主线移除 `.bak`、reference patch、patch 一致性、sub agent、oracle 和“不要新增 helper/import/test”等审计或 AI 约束语言。
+- 把负向约束改写成模块边界、教学顺序、测试分层和后续阶段扩展理由。
+
+重写文件：
+
+- `roadmap/index.md`
+- `roadmap/01-拆出-frontier-核心算法.md`
+- `roadmap/02-接入-ROS2-探索节点.md`
+- `roadmap/03-增加探索-launch-入口.md`
+- `roadmap/04-验证探索闭环.md`
+
+可阅读性检查：
+
+- `roadmap/` 主线中未再匹配 `.bak`、`reference-runtime`、`patch`、`sub agent`、`oracle`、`不要新增`、`不要复制`、`为了.*一致`、`字节级`、`探针分支`、`探针 commit`、`不要删除`、`不要回退`、`不要改成`。
+- 审计信息仍保留在 `evidence/usage.md` 和 reference/evidence 审计材料中，不进入主阅读路径。
+
+重写后的严格复测者：独立 sub agent `019e7cc2-b337-7ce2-8c24-3eb61658771a`。
+
+复测口径：
+
+- 从共同 baseline `6f0ef3bb59e898d3f11ecabb04518b37321be9b5` 创建临时 worktree。
+- 只按 `roadmap/` 步骤一步一步手写 runtime 代码。
+- 实现阶段不复制 `reference/final-runtime/**/*.bak`，不套用 `evidence/reference-runtime.patch`，不读取探针分支或成品分支源码。
+- 验证完成后再读取 `evidence/reference-runtime.patch` 做最终 patch 审计。
+
+验证命令和结果：
+
+| 命令 | 结果 |
+| --- | --- |
+| `python3 -m py_compile ...` | 通过，退出码 0 |
+| `PYTHONPATH=src/kibot_one_control python3 -m pytest -q src/kibot_one_control/test/test_frontier_core.py` | 通过，`3 passed in 0.01s` |
+| `colcon build --packages-select kibot_one_control` | 通过，`Summary: 1 package finished` |
+| `ros2 launch kibot_one_control frontier_exploration.launch.py --show-args` | 通过，显示 `world`、`use_rviz`、`start_explorer` 和阶段 02 Nav2 参数 |
+| 无仿真冒烟 | 通过，`frontier_explorer` 启动，`timeout` 退出码 124 |
+| 35s 完整仿真 | 通过，Nav2 active 后发送 frontier，出现 `Goal succeeded` 和 `frontier goal 7:11 succeeded`，随后继续发送第二个 frontier |
+
+patch 审计：
+
+- 已先对新增 runtime 文件执行 `git add -N`。
+- redo patch：`/tmp/redo-03.diff`，`20980` bytes。
+- reference patch：`docs/embodied-ai-roadmap/03-边界探索/evidence/reference-runtime.patch`，`20980` bytes。
+- `diff -u reference-runtime.patch /tmp/redo-03.diff` 无输出。
+- `cmp` 退出码：0。
+- 判定：字节级一致，无需使用 CRLF/LF 忽略规则。
+
+严格复测结论：
+
+- 通过。可阅读性重写没有破坏可复现性。
+- 阶段 03 roadmap 现在同时满足“主线叙事不暴露审计语境”和“roadmap-only 手写 runtime 后 patch 字节级一致”的要求。
+
+清理状态：
+
+- sub agent 已终止残留 `gz sim server`。
+- sub agent 已删除临时 worktree `/tmp/kibottwo-03-frontier-redo`。
+- sub agent 已删除临时分支 `tmp/03-frontier-redo-check`。
+- 最终残留进程检查未见目标 ROS/Gazebo/launch 进程。

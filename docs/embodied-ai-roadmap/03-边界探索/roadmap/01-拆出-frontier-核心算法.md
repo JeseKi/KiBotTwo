@@ -4,7 +4,7 @@
 
 先实现一个不依赖 ROS2 node 生命周期的核心模块，把 OccupancyGrid 的扁平数组转换成可排序的 frontier 候选。
 
-本节不要从 `.bak` 文件复制代码。创建空文件后，按下面片段顺序写入；除片段要求外，不新增额外 helper、import 或测试。
+本节从一个独立的纯算法文件开始。先把地图栅格、frontier 分组、目标点选择和冷却过滤集中在 `frontier_core.py`，让算法层在接入 ROS2 节点之前形成清晰边界。
 
 ## 为什么现在做
 
@@ -114,7 +114,7 @@ def find_frontier_candidates(
     return sorted(candidates, key=lambda candidate: candidate.score, reverse=True)
 ```
 
-这里有三个细节必须保持一致：
+这里有三个技术判断会影响后续节点行为：
 
 - `frontier_cells` 用 4 邻域判断 unknown 是否贴着 free cell。
 - component 用 `_collect_component()` 的 8 邻域合并。
@@ -154,7 +154,7 @@ def _is_free(value: int, free_threshold: int) -> bool:
     return 0 <= value <= free_threshold
 ```
 
-`_validate_grid()` 是为了让单测和运行时失败尽早暴露，不要默默在错误长度的数组上选点。
+`_validate_grid()` 让单测和运行时都能尽早暴露地图尺寸错误，避免在错误长度的数组上产生看似合理的目标点。
 
 ## 第四步：实现 4 邻域和 8 邻域
 
@@ -271,7 +271,7 @@ def _component_key(component: Sequence[int], info: GridInfo) -> str:
     return f"{cell_x}:{cell_y}"
 ```
 
-这里的 `key` 来自 unknown component centroid；Nav2 goal 来自 free-side centroid。不要把这两个概念合并。
+这里的 `key` 来自 unknown component centroid；Nav2 goal 来自 free-side centroid。前者用于识别同一条边界，后者用于给 Nav2 一个落在已知空闲侧的可执行目标。
 
 ## 第七步：创建核心算法测试文件
 
@@ -281,7 +281,7 @@ def _component_key(component: Sequence[int], info: GridInfo) -> str:
 src/kibot_one_control/test/test_frontier_core.py
 ```
 
-从空文件写入以下测试。测试名、数据和断言值都要保持一致，因为它们同时约束算法行为和最终 patch。
+从空文件写入以下测试。测试名、数据和断言值共同描述本节的算法契约：frontier 如何被识别、过滤、排序，以及冷却规则如何生效。
 
 ```python
 from kibot_one_control.frontier_core import GridInfo

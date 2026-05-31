@@ -52,27 +52,15 @@ flowchart TD
 - `src/kibot_one_control/package.xml`
 - `src/kibot_one_control/setup.py`
 
-## 成品一致性要求
+## 实现边界说明
 
-本阶段探针分支：
+本阶段的实现从纯算法开始，再接入 ROS2 节点，最后补齐 launch 入口和分层验证。这个顺序把问题拆成三个层次：
 
-```text
-roadmap-probe/03-frontier-exploration
-```
+- 算法层只处理 OccupancyGrid 数据、frontier 分组、free-side goal 和冷却过滤。
+- 节点层只处理 `/map`、`map -> base_link` 和 `/navigate_to_pose` 三个运行时接口。
+- launch 层只复用阶段 02 的 Nav2 bringup，并增加探索节点开关。
 
-探针 commit：
-
-```text
-bd5837fc9c2d90fdbc271bd6e9542110734c41cc
-```
-
-共同 baseline：
-
-```text
-6f0ef3bb59e898d3f11ecabb04518b37321be9b5
-```
-
-读者按本 roadmap 从共同 baseline 手写完成后，非 `docs/` runtime diff 必须与 `../evidence/reference-runtime.patch` 完全一致。最终 runtime 文件副本放在 `../reference/final-runtime/`；章节正文负责解释实现顺序，`.bak` 文件负责逐文件核对。
+这样写完后，学生可以先用单测确认 frontier 选择契约，再用 launch 冒烟和短时仿真确认 ROS2 runtime 已经接通。
 
 ## 系统预期状态
 
@@ -107,7 +95,7 @@ bd5837fc9c2d90fdbc271bd6e9542110734c41cc
 - 如果一直显示 `waiting for /map`，先检查阶段 01 的 SLAM 和 `/scan`。
 - 如果一直显示等待 `map -> base_link`，先检查 TF 和 SLAM lifecycle。
 - 如果 action server 不存在，回到阶段 02 验证 `/navigate_to_pose`。
-- 如果 goal 总是 `ABORTED`，不要先改 explorer 算法；先用 RViz 判断该 frontier 的 free-side goal 是否真的局部可达。
+- 如果 goal 总是 `ABORTED`，优先用 RViz 判断该 frontier 的 free-side goal 是否真的局部可达，再决定是否需要调整 explorer 的距离参数或候选选择策略。
 
 ## 下一阶段依赖契约
 

@@ -4,7 +4,7 @@
 
 新增 `frontier_exploration.launch.py`，让用户可以一条命令启动阶段 02 的 Nav2 bringup 和阶段 03 的 `frontier_explorer`。
 
-本节从空文件开始按片段顺序追加。不要新增其他 launch action。
+本节从空文件开始按片段顺序追加。这个 launch 文件只负责把阶段 02 的 Nav2 bringup 和本阶段的 `frontier_explorer` 组合起来，保持启动入口简洁，方便后续章节定位问题来源。
 
 ## 为什么现在做
 
@@ -86,7 +86,7 @@ def generate_launch_description() -> LaunchDescription:
     )
 ```
 
-不要在这里重新声明 Nav2 参数；阶段 02 已经负责 `params_file`、SLAM、bridge、lifecycle 和 runtime dependency check。
+Nav2 参数继续由阶段 02 管理，包括 `params_file`、SLAM、bridge、lifecycle 和 runtime dependency check。本阶段只透传需要的启动参数，避免在探索入口里复制导航配置。
 
 ## 第五步：启动 explorer 节点
 
@@ -121,7 +121,7 @@ def generate_launch_description() -> LaunchDescription:
     ])
 ```
 
-`return LaunchDescription([...])` 使用列表形式，不要改成 `initial_entities=`，以保持最终 patch 一致。
+`return LaunchDescription([...])` 使用列表形式，让三个 launch argument、Nav2 bringup 和 explorer 节点按阅读顺序集中呈现。
 
 ## 做完应该看到什么
 
