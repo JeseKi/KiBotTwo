@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OccupancyGrid 360° 射线建图演示</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111827;
+      --panel-2: #172033;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --border: #263244;
+      --accent: #60a5fa;
+      --accent-2: #fbbf24;
+      --danger: #f87171;
+      --ok: #34d399;
+      --unknown: #2b3344;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #172033 0, var(--bg) 52%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stage, .panel {
+      background: rgba(17, 24, 39, 0.86);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(10px);
+    }
+
+    .stage {
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 20px;
+      line-height: 1.25;
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #060914;
+      padding: 10px;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      image-rendering: pixelated;
+      border-radius: 8px;
+      background: #0b1020;
+    }
+
+    .panel {
+      padding: 16px;
+      position: sticky;
+      top: 18px;
+    }
+
+    .section { margin-bottom: 18px; }
+    .section:last-child { margin-bottom: 0; }
+
+    .section h2 {
+      font-size: 14px;
+      margin: 0 0 10px;
+      color: #cbd5e1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 160ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #3b82f6;
+      background: #1e293b;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      border-color: #3b82f6;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0;
+      user-select: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .kv strong { color: var(--text); font-weight: 700; }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,.16);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      background: rgba(96, 165, 250, 0.08);
+      border: 1px solid rgba(96, 165, 250, 0.18);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .code {
+      color: #dbeafe;
+      background: rgba(219, 234, 254, 0.1);
+      border: 1px solid rgba(219, 234, 254, 0.12);
+      padding: 1px 6px;
+      border-radius: 7px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .status {
+      min-height: 28px;
+      color: #bfdbfe;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 940px) {
+      body { padding: 12px; }
+      .app { grid-template-columns: 1fr; }
+      .panel { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <div class="title-row">
+        <div>
+          <h1>OccupancyGrid：360° 射线观测更新演示</h1>
+          <div class="subtitle">真实地图隐藏在底层；画面显示的是机器人当前“认知地图”。</div>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="gridCanvas" width="960" height="720" aria-label="OccupancyGrid demo canvas"></canvas>
+      </div>
+      <div class="status" id="status"></div>
+    </section>
+
+    <aside class="panel">
+      <div class="section">
+        <h2>控制</h2>
+        <div class="buttons">
+          <button class="primary" id="scanBtn">发射射线 Space</button>
+          <button id="resetBtn">刷新地图</button>
+        </div>
+        <div class="hint" style="margin-top: 10px;">
+          移动：<span class="code">WASD</span> 或 <span class="code">方向键</span><br />
+          扫描：按一次 <span class="code">Space</span> 手动触发一次 360° 射线。不会自动扫描。
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>参数</h2>
+        <label>
+          射线距离：<strong id="rangeLabel">12</strong> 格
+        </label>
+        <input id="rangeInput" type="range" min="4" max="22" step="1" value="12" />
+
+        <label>
+          射线数量：<strong id="rayLabel">240</strong> 条
+        </label>
+        <input id="rayInput" type="range" min="60" max="720" step="20" value="240" />
+
+        <label>
+          <input id="showTruth" type="checkbox" />
+          显示真实障碍物轮廓
+        </label>
+        <label>
+          <input id="showNumbers" type="checkbox" checked />
+          显示栅格数值
+        </label>
+      </div>
+
+      <div class="section">
+        <h2>地图统计</h2>
+        <div class="kv">
+          <span>机器人坐标</span><strong id="robotPos">-</strong>
+          <span>未知栅格</span><strong id="unknownCount">-</strong>
+          <span>空闲确认</span><strong id="freeCount">-</strong>
+          <span>占据确认</span><strong id="occCount">-</strong>
+          <span>模糊概率</span><strong id="softCount">-</strong>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>颜色含义</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="swatch" style="background:#2b3344"></span><span>-1：未知</span></div>
+          <div class="legend-item"><span class="swatch" style="background:#e8f7ff"></span><span>0：确认空闲，锁定不再更新</span></div>
+          <div class="legend-item"><span class="swatch" style="background:#6b7280"></span><span>1~99：模糊概率，越接近 0/100 越清晰</span></div>
+          <div class="legend-item"><span class="swatch" style="background:#111827"></span><span>100：确认占据，锁定不再更新</span></div>
+          <div class="legend-item"><span class="swatch" style="background:#60a5fa"></span><span>蓝色圆点：机器人</span></div>
+          <div class="legend-item"><span class="swatch" style="background:#fbbf24"></span><span>黄色线：本次发射的射线</span></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const COLS = 32;
+    const ROWS = 24;
+    const CELL = 30;
+
+    const UNKNOWN = -1;
+    const FREE = 0;
+    const OCC = 100;
+
+    const canvas = document.getElementById("gridCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = COLS * CELL;
+    canvas.height = ROWS * CELL;
+
+    const scanBtn = document.getElementById("scanBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const rangeInput = document.getElementById("rangeInput");
+    const rayInput = document.getElementById("rayInput");
+    const rangeLabel = document.getElementById("rangeLabel");
+    const rayLabel = document.getElementById("rayLabel");
+    const showTruth = document.getElementById("showTruth");
+    const showNumbers = document.getElementById("showNumbers");
+    const statusEl = document.getElementById("status");
+
+    const robotPosEl = document.getElementById("robotPos");
+    const unknownCountEl = document.getElementById("unknownCount");
+    const freeCountEl = document.getElementById("freeCount");
+    const occCountEl = document.getElementById("occCount");
+    const softCountEl = document.getElementById("softCount");
+
+    let trueMap = [];
+    let beliefMap = [];
+    let robot = { x: 1, y: 1 };
+    let lastRays = [];
+    let lastMessage = "按 Space 发射一次 360° 射线，开始构建 OccupancyGrid。";
+
+    function make2D(rows, cols, value) {
+      return Array.from({ length: rows }, () => Array.from({ length: cols }, () => value));
+    }
+
+    function clamp(v, lo, hi) {
+      return Math.max(lo, Math.min(hi, v));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function inBounds(x, y) {
+      return x >= 0 && x < COLS && y >= 0 && y < ROWS;
+    }
+
+    function isLocked(v) {
+      return v === FREE || v === OCC;
+    }
+
+    function generateTrueMap() {
+      const map = make2D(ROWS, COLS, 0);
+
+      // 边界墙。
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) map[y][x] = 1;
+        }
+      }
+
+      // 随机矩形障碍物。
+      const rectCount = randInt(7, 12);
+      for (let i = 0; i < rectCount; i++) {
+        const w = randInt(2, 6);
+        const h = randInt(2, 5);
+        const x0 = randInt(2, COLS - w - 3);
+        const y0 = randInt(2, ROWS - h - 3);
+        for (let y = y0; y < y0 + h; y++) {
+          for (let x = x0; x < x0 + w; x++) {
+            map[y][x] = 1;
+          }
+        }
+      }
+
+      // 少量散点障碍物，让地图更像真实环境。
+      for (let y = 2; y < ROWS - 2; y++) {
+        for (let x = 2; x < COLS - 2; x++) {
+          if (Math.random() < 0.045) map[y][x] = 1;
+        }
+      }
+
+      return map;
+    }
+
+    function placeRobotOnFreeCell() {
+      const candidates = [];
+      for (let y = 1; y < ROWS - 1; y++) {
+        for (let x = 1; x < COLS - 1; x++) {
+          if (trueMap[y][x] === 0) candidates.push({ x, y });
+        }
+      }
+
+      if (candidates.length === 0) {
+        trueMap[1][1] = 0;
+        return { x: 1, y: 1 };
+      }
+
+      return candidates[randInt(0, candidates.length - 1)];
+    }
+
+    function resetWorld() {
+      trueMap = generateTrueMap();
+      beliefMap = make2D(ROWS, COLS, UNKNOWN);
+      robot = placeRobotOnFreeCell();
+      lastRays = [];
+      lastMessage = "已刷新地图。机器人不会出生在占据栅格中。";
+      draw();
+    }
+
+    function updateBeliefCell(x, y, target, distance) {
+      const old = beliefMap[y][x];
+      if (isLocked(old)) return;
+
+      const maxRange = Number(rangeInput.value);
+      const chebyshev = Math.max(Math.abs(x - robot.x), Math.abs(y - robot.y));
+
+      // 相邻格直接清晰化为 0 或 100，并锁定。
+      if (chebyshev <= 1) {
+        beliefMap[y][x] = target;
+        return;
+      }
+
+      // 距离越远，证据越弱。远处只会落在 1~99，不会直接变成 0/100。
+      const confidence = clamp(1 - (distance - 1) / maxRange, 0.10, 0.92);
+      let evidence;
+
+      if (target === FREE) {
+        // 空闲证据：越近越靠近 0，越远越靠近 50。
+        evidence = Math.round(lerp(50, 1, confidence));
+      } else {
+        // 占据证据：越近越靠近 100，越远越靠近 50。
+        evidence = Math.round(lerp(50, 99, confidence));
+      }
+
+      if (old === UNKNOWN) {
+        beliefMap[y][x] = evidence;
+      } else {
+        // 多次观测融合：新证据和旧概率进行加权平均。
+        // 靠近机器人时权重大，远处权重小。
+        const weight = clamp(confidence * 0.42, 0.08, 0.45);
+        const next = Math.round(old * (1 - weight) + evidence * weight);
+        beliefMap[y][x] = clamp(next, 1, 99);
+      }
+    }
+
+    function castRay(angle) {
+      const maxRange = Number(rangeInput.value);
+      const step = 0.055;
+      const originX = robot.x + 0.5;
+      const originY = robot.y + 0.5;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+      let lastCellKey = "";
+      let end = { x: originX, y: originY, hit: false };
+
+      for (let t = 0; t <= maxRange; t += step) {
+        const px = originX + dx * t;
+        const py = originY + dy * t;
+        const cx = Math.floor(px);
+        const cy = Math.floor(py);
+
+        if (!inBounds(cx, cy)) {
+          end = { x: px, y: py, hit: false };
+          break;
+        }
+
+        const key = cx + "," + cy;
+        if (key === lastCellKey) continue;
+        lastCellKey = key;
+
+        const dist = Math.hypot(cx + 0.5 - originX, cy + 0.5 - originY);
+        const target = trueMap[cy][cx] === 1 ? OCC : FREE;
+        updateBeliefCell(cx, cy, target, dist);
+
+        if (trueMap[cy][cx] === 1) {
+          end = { x: cx + 0.5, y: cy + 0.5, hit: true };
+          break;
+        }
+
+        end = { x: px, y: py, hit: false };
+      }
+
+      return end;
+    }
+
+    function scan360() {
+      const rays = Number(rayInput.value);
+      lastRays = [];
+      const originX = robot.x + 0.5;
+      const originY = robot.y + 0.5;
+
+      for (let i = 0; i < rays; i++) {
+        const angle = (Math.PI * 2 * i) / rays;
+        const end = castRay(angle);
+        lastRays.push({ x1: originX, y1: originY, x2: end.x, y2: end.y, hit: end.hit });
+      }
+
+      lastMessage = `已手动发射 ${rays} 条 360° 射线。近处格子会直接变成 0/100，远处只更新为模糊概率。`;
+      draw();
+    }
+
+    function tryMove(dx, dy) {
+      const nx = robot.x + dx;
+      const ny = robot.y + dy;
+
+      if (!inBounds(nx, ny)) return;
+
+      if (trueMap[ny][nx] === 1) {
+        lastMessage = "移动被真实障碍物阻挡。注意：没有扫描时，认知地图不一定知道那里是障碍物。";
+        draw();
+        return;
+      }
+
+      robot = { x: nx, y: ny };
+      lastRays = [];
+      lastMessage = "机器人已移动。再次按 Space 才会更新 OccupancyGrid。";
+      draw();
+    }
+
+    function cellColor(v) {
+      if (v === UNKNOWN) return "#2b3344";
+      if (v === FREE) return "#e8f7ff";
+      if (v === OCC) return "#111827";
+
+      if (v < 50) {
+        const t = v / 50;
+        const r = Math.round(lerp(232, 107, t));
+        const g = Math.round(lerp(247, 114, t));
+        const b = Math.round(lerp(255, 128, t));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      const t = (v - 50) / 50;
+      const r = Math.round(lerp(107, 248, t));
+      const g = Math.round(lerp(114, 113, t));
+      const b = Math.round(lerp(128, 113, t));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const v = beliefMap[y][x];
+          ctx.fillStyle = cellColor(v);
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.055)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x * CELL + 0.5, y * CELL + 0.5, CELL, CELL);
+
+          if (showTruth.checked && trueMap[y][x] === 1) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(251, 191, 36, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x * CELL + 4, y * CELL + 4, CELL - 8, CELL - 8);
+            ctx.beginPath();
+            ctx.moveTo(x * CELL + 7, y * CELL + 7);
+            ctx.lineTo((x + 1) * CELL - 7, (y + 1) * CELL - 7);
+            ctx.moveTo((x + 1) * CELL - 7, y * CELL + 7);
+            ctx.lineTo(x * CELL + 7, (y + 1) * CELL - 7);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          if (showNumbers.checked) {
+            ctx.save();
+            ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = v === OCC ? "#f8fafc" : v === UNKNOWN ? "#cbd5e1" : "#0f172a";
+            const label = v === UNKNOWN ? "-1" : String(v);
+            ctx.fillText(label, x * CELL + CELL / 2, y * CELL + CELL / 2);
+            ctx.restore();
+          }
+        }
+      }
+    }
+
+    function drawRays() {
+      if (!lastRays.length) return;
+
+      ctx.save();
+      ctx.lineWidth = 1.1;
+      for (const ray of lastRays) {
+        ctx.strokeStyle = ray.hit ? "rgba(251, 191, 36, 0.42)" : "rgba(251, 191, 36, 0.24)";
+        ctx.beginPath();
+        ctx.moveTo(ray.x1 * CELL, ray.y1 * CELL);
+        ctx.lineTo(ray.x2 * CELL, ray.y2 * CELL);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawRobot() {
+      const cx = robot.x * CELL + CELL / 2;
+      const cy = robot.y * CELL + CELL / 2;
+
+      ctx.save();
+      ctx.shadowColor = "rgba(96, 165, 250, 0.95)";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = "#60a5fa";
+      ctx.beginPath();
+      ctx.arc(cx, cy, CELL * 0.33, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255,255,255,.9)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#0b1020";
+      ctx.font = "bold 12px ui-sans-serif, system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("R", cx, cy + 0.5);
+      ctx.restore();
+    }
+
+    function updateStats() {
+      let unknown = 0;
+      let free = 0;
+      let occ = 0;
+      let soft = 0;
+
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const v = beliefMap[y][x];
+          if (v === UNKNOWN) unknown++;
+          else if (v === FREE) free++;
+          else if (v === OCC) occ++;
+          else soft++;
+        }
+      }
+
+      robotPosEl.textContent = `(${robot.x}, ${robot.y})`;
+      unknownCountEl.textContent = unknown;
+      freeCountEl.textContent = free;
+      occCountEl.textContent = occ;
+      softCountEl.textContent = soft;
+      statusEl.textContent = lastMessage;
+    }
+
+    function draw() {
+      rangeLabel.textContent = rangeInput.value;
+      rayLabel.textContent = rayInput.value;
+      drawGrid();
+      drawRays();
+      drawRobot();
+      updateStats();
+    }
+
+    function handleKeydown(e) {
+      const key = e.key.toLowerCase();
+      const movementKeys = ["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright", " "];
+      if (movementKeys.includes(key)) e.preventDefault();
+
+      if (key === "w" || key === "arrowup") tryMove(0, -1);
+      else if (key === "s" || key === "arrowdown") tryMove(0, 1);
+      else if (key === "a" || key === "arrowleft") tryMove(-1, 0);
+      else if (key === "d" || key === "arrowright") tryMove(1, 0);
+      else if (key === " ") scan360();
+    }
+
+    scanBtn.addEventListener("click", scan360);
+    resetBtn.addEventListener("click", resetWorld);
+    rangeInput.addEventListener("input", draw);
+    rayInput.addEventListener("input", draw);
+    showTruth.addEventListener("change", draw);
+    showNumbers.addEventListener("change", draw);
+    window.addEventListener("keydown", handleKeydown, { passive: false });
+
+    resetWorld();
+  </script>
+</body>
+</html>
