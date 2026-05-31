@@ -35,7 +35,9 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 9. 编写具体 part 时默认启用探针分支模式并产出 `evidence/`；跳过条件见 `references/validation-workflows.md`。
 10. 当前 part 的文档完成后，按 `references/validation-workflows.md` 执行文档复测闭环：必须由 sub agent 独立复测，且有参考实现时必须通过非 `docs/` patch 字节级一致审计。
 11. 根据复测反馈修正文档和 evidence；失败、阻塞和修正结果不能只留在聊天里。
-12. 每个 part 结束时，记录它解锁了哪些后续 part。
+12. 复测通过后，按 `references/readability-rewrite.md` 做可阅读性重写：用新的 sub agent 消除 roadmap 主线里的补丁感和审计语境，让它像给学生阅读的连续教程。
+13. 可阅读性重写后必须再次执行文档复测闭环，确认叙事改写没有破坏可复现性。
+14. 每个 part 结束时，记录它解锁了哪些后续 part。
 
 探针分支和文档复测闭环的详细规则见：`references/validation-workflows.md`。
 
@@ -43,6 +45,7 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 
 - 写目录结构、顶层 `index.md`、roadmap 章节、reference/checklist/evidence 文件时，读取 `references/artifacts-and-writing.md`。
 - 需要做探针分支、真实验证、sub agent 复测、临时分支/worktree 清理时，读取 `references/validation-workflows.md`。
+- 需要在复测通过后消除 roadmap 的补丁感、审计语境和 AI 约束语言时，读取 `references/readability-rewrite.md`。
 - 需要判断当前 part 属于基线调查、架构设计、实现引导、代码审阅或集成推进时，读取 `references/phase-types-and-constraints.md`。
 
 只读取当前任务需要的 reference，不要一次性把所有 reference 都加载进上下文。
@@ -55,6 +58,7 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 - 不要把 roadmap 写成只包含标题的空路线。
 - 不要把 reference 写成主线教程。
 - 不要用“完整最终代码清单”、复制 `.bak`、套用 reference patch 或功能等价说明绕过 roadmap 复测。
+- 不要把 `.bak`、reference patch、sub agent、oracle 或字节级审计语境写进 roadmap 主线；这些属于 evidence/validation。
 - 不要把 checklist 写成泛泛愿望；尽量写成可观察结果。
 - 不要因为某类目录暂时为空，就强行创建文件。
 - 不要因为文档模板没有全部填满，就否定已经通过核心验收的 part。
