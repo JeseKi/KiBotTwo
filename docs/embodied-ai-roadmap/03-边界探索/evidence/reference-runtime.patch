@@ -1,0 +1,595 @@
+diff --git a/src/kibot_one_control/kibot_one_control/frontier_core.py b/src/kibot_one_control/kibot_one_control/frontier_core.py
+new file mode 100644
+index 0000000..ba110bf
+--- /dev/null
++++ b/src/kibot_one_control/kibot_one_control/frontier_core.py
+@@ -0,0 +1,194 @@
++from __future__ import annotations
++
++from collections import deque
++from dataclasses import dataclass
++import math
++from typing import Iterable, Sequence
++
++
++@dataclass(frozen=True)
++class GridInfo:
++    width: int
++    height: int
++    resolution: float
++    origin_x: float
++    origin_y: float
++
++
++@dataclass(frozen=True)
++class FrontierCandidate:
++    key: str
++    map_x: float
++    map_y: float
++    size: int
++    distance: float
++    score: float
++
++
++def find_frontier_candidates(
++    data: Sequence[int],
++    info: GridInfo,
++    robot_x: float,
++    robot_y: float,
++    *,
++    min_frontier_size: int = 3,
++    min_goal_distance: float = 0.35,
++    max_goal_distance: float = 3.0,
++    free_threshold: int = 20,
++) -> list[FrontierCandidate]:
++    """Return scored frontier centroids from an OccupancyGrid-like array."""
++    _validate_grid(data, info)
++
++    frontier_cells = {
++        index
++        for index, value in enumerate(data)
++        if _is_unknown(value)
++        and any(_is_free(data[neighbor], free_threshold) for neighbor in _neighbors4(index, info))
++    }
++
++    candidates: list[FrontierCandidate] = []
++    visited: set[int] = set()
++    for start in sorted(frontier_cells):
++        if start in visited:
++            continue
++
++        component = _collect_component(start, frontier_cells, visited, info)
++        if len(component) < min_frontier_size:
++            continue
++
++        goal_x, goal_y = _component_free_centroid(component, data, info, free_threshold)
++        distance = math.hypot(goal_x - robot_x, goal_y - robot_y)
++        if distance < min_goal_distance or distance > max_goal_distance:
++            continue
++
++        # Prefer larger frontiers, but keep the action goal on the known-free side of the boundary.
++        score = float(len(component)) - distance
++        candidates.append(
++            FrontierCandidate(
++                key=_component_key(component, info),
++                map_x=goal_x,
++                map_y=goal_y,
++                size=len(component),
++                distance=distance,
++                score=score,
++            )
++        )
++
++    return sorted(candidates, key=lambda candidate: candidate.score, reverse=True)
++
++
++def filter_cooldown_candidates(
++    candidates: Iterable[FrontierCandidate],
++    cooled_frontiers: dict[str, float],
++    now_seconds: float,
++) -> list[FrontierCandidate]:
++    return [
++        candidate
++        for candidate in candidates
++        if cooled_frontiers.get(candidate.key, 0.0) <= now_seconds
++    ]
++
++
++def _validate_grid(data: Sequence[int], info: GridInfo) -> None:
++    if info.width <= 0 or info.height <= 0:
++        raise ValueError("grid width and height must be positive")
++    if len(data) != info.width * info.height:
++        raise ValueError("grid data length does not match width * height")
++
++
++def _is_unknown(value: int) -> bool:
++    return value < 0
++
++
++def _is_free(value: int, free_threshold: int) -> bool:
++    return 0 <= value <= free_threshold
++
++
++def _neighbors4(index: int, info: GridInfo) -> Iterable[int]:
++    x = index % info.width
++    y = index // info.width
++    if x > 0:
++        yield index - 1
++    if x < info.width - 1:
++        yield index + 1
++    if y > 0:
++        yield index - info.width
++    if y < info.height - 1:
++        yield index + info.width
++
++
++def _neighbors8(index: int, info: GridInfo) -> Iterable[int]:
++    x = index % info.width
++    y = index // info.width
++    for dy in (-1, 0, 1):
++        for dx in (-1, 0, 1):
++            if dx == 0 and dy == 0:
++                continue
++            nx = x + dx
++            ny = y + dy
++            if 0 <= nx < info.width and 0 <= ny < info.height:
++                yield ny * info.width + nx
++
++
++def _collect_component(
++    start: int,
++    frontier_cells: set[int],
++    visited: set[int],
++    info: GridInfo,
++) -> list[int]:
++    component: list[int] = []
++    queue: deque[int] = deque([start])
++    visited.add(start)
++
++    while queue:
++        index = queue.popleft()
++        component.append(index)
++        for neighbor in _neighbors8(index, info):
++            if neighbor in frontier_cells and neighbor not in visited:
++                visited.add(neighbor)
++                queue.append(neighbor)
++
++    return component
++
++
++def _component_centroid(component: Sequence[int], info: GridInfo) -> tuple[float, float]:
++    total_x = 0.0
++    total_y = 0.0
++    for index in component:
++        world_x, world_y = _index_to_world(index, info)
++        total_x += world_x
++        total_y += world_y
++    return total_x / len(component), total_y / len(component)
++
++
++def _component_free_centroid(
++    component: Sequence[int],
++    data: Sequence[int],
++    info: GridInfo,
++    free_threshold: int,
++) -> tuple[float, float]:
++    free_neighbors = {
++        neighbor
++        for index in component
++        for neighbor in _neighbors4(index, info)
++        if _is_free(data[neighbor], free_threshold)
++    }
++    if not free_neighbors:
++        return _component_centroid(component, info)
++    return _component_centroid(sorted(free_neighbors), info)
++
++
++def _index_to_world(index: int, info: GridInfo) -> tuple[float, float]:
++    x = index % info.width
++    y = index // info.width
++    return (
++        info.origin_x + (x + 0.5) * info.resolution,
++        info.origin_y + (y + 0.5) * info.resolution,
++    )
++
++
++def _component_key(component: Sequence[int], info: GridInfo) -> str:
++    centroid_x, centroid_y = _component_centroid(component, info)
++    cell_x = int((centroid_x - info.origin_x) / info.resolution)
++    cell_y = int((centroid_y - info.origin_y) / info.resolution)
++    return f"{cell_x}:{cell_y}"
+diff --git a/src/kibot_one_control/kibot_one_control/frontier_explorer.py b/src/kibot_one_control/kibot_one_control/frontier_explorer.py
+new file mode 100644
+index 0000000..152f80e
+--- /dev/null
++++ b/src/kibot_one_control/kibot_one_control/frontier_explorer.py
+@@ -0,0 +1,214 @@
++from __future__ import annotations
++
++from typing import Any, cast
++
++import rclpy
++from action_msgs.msg import GoalStatus  # type: ignore
++from geometry_msgs.msg import PoseStamped  # type: ignore
++from nav2_msgs.action import NavigateToPose  # type: ignore
++from nav_msgs.msg import OccupancyGrid  # type: ignore
++from rclpy.action import ActionClient  # type: ignore
++from rclpy.executors import ExternalShutdownException
++from rclpy.node import Node
++from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
++from tf2_ros import Buffer, TransformException, TransformListener  # type: ignore
++
++from kibot_one_control.frontier_core import GridInfo
++from kibot_one_control.frontier_core import filter_cooldown_candidates
++from kibot_one_control.frontier_core import find_frontier_candidates
++
++
++class FrontierExplorer(Node):
++    def __init__(self) -> None:
++        super().__init__("frontier_explorer")
++
++        params = [
++            ("map_topic", "/map"),
++            ("map_frame", "map"),
++            ("base_frame", "base_link"),
++            ("navigate_action", "/navigate_to_pose"),
++            ("exploration_period", 1.0),
++            ("goal_timeout", 35.0),
++            ("frontier_cooldown", 20.0),
++            ("min_frontier_size", 3),
++            ("min_goal_distance", 0.35),
++            ("max_goal_distance", 3.0),
++            ("free_threshold", 20),
++        ]
++        self.declare_parameters(namespace="", parameters=cast(Any, params))
++
++        self.latest_map: OccupancyGrid | None = None
++        self.current_goal_key: str | None = None
++        self.current_goal_sent_seconds: float | None = None
++        self.goal_handle: Any | None = None
++        self.cooled_frontiers: dict[str, float] = {}
++
++        self.tf_buffer = Buffer()
++        self.tf_listener = TransformListener(self.tf_buffer, self)
++        self.action_client: ActionClient = ActionClient(
++            self,
++            NavigateToPose,
++            cast(str, self.get_parameter("navigate_action").value),
++        )
++
++        map_qos = QoSProfile(
++            history=QoSHistoryPolicy.KEEP_LAST,
++            depth=1,
++            reliability=QoSReliabilityPolicy.RELIABLE,
++            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
++        )
++        self.create_subscription(
++            msg_type=OccupancyGrid,
++            topic=cast(str, self.get_parameter("map_topic").value),
++            callback=self._map_callback,
++            qos_profile=map_qos,
++        )
++        self.create_timer(
++            timer_period_sec=cast(float, self.get_parameter("exploration_period").value),
++            callback=self._exploration_tick,
++        )
++
++    def _map_callback(self, msg: OccupancyGrid) -> None:
++        self.latest_map = msg
++
++    def _exploration_tick(self) -> None:
++        if self.current_goal_key is not None:
++            self._cancel_timed_out_goal()
++            return
++
++        if self.latest_map is None:
++            self.get_logger().debug("waiting for /map before selecting frontier")
++            return
++
++        if not self.action_client.wait_for_server(timeout_sec=0.1):
++            self.get_logger().debug("waiting for NavigateToPose action server")
++            return
++
++        robot_pose = self._lookup_robot_pose()
++        if robot_pose is None:
++            return
++
++        candidate = self._select_candidate(robot_pose[0], robot_pose[1])
++        if candidate is None:
++            self.get_logger().info("no usable frontier candidate found")
++            return
++
++        goal = NavigateToPose.Goal()
++        goal.pose.header.frame_id = cast(str, self.get_parameter("map_frame").value)
++        goal.pose.header.stamp = self.get_clock().now().to_msg()
++        goal.pose.pose.position.x = candidate.map_x
++        goal.pose.pose.position.y = candidate.map_y
++        goal.pose.pose.orientation.w = 1.0
++
++        self.current_goal_key = candidate.key
++        self.current_goal_sent_seconds = self._now_seconds()
++        self.get_logger().info(
++            "sending frontier %s at (%.2f, %.2f), size=%d, distance=%.2f, score=%.2f"
++            % (candidate.key, candidate.map_x, candidate.map_y, candidate.size, candidate.distance, candidate.score)
++        )
++        future = self.action_client.send_goal_async(goal)
++        future.add_done_callback(self._goal_response_callback)
++
++    def _lookup_robot_pose(self) -> tuple[float, float] | None:
++        map_frame = cast(str, self.get_parameter("map_frame").value)
++        base_frame = cast(str, self.get_parameter("base_frame").value)
++        try:
++            transform = self.tf_buffer.lookup_transform(map_frame, base_frame, rclpy.time.Time())
++        except TransformException as exc:
++            self.get_logger().debug(f"waiting for {map_frame} -> {base_frame}: {exc}")
++            return None
++        return (
++            transform.transform.translation.x,
++            transform.transform.translation.y,
++        )
++
++    def _select_candidate(self, robot_x: float, robot_y: float):
++        assert self.latest_map is not None
++        grid = self.latest_map.info
++        info = GridInfo(
++            width=grid.width,
++            height=grid.height,
++            resolution=grid.resolution,
++            origin_x=grid.origin.position.x,
++            origin_y=grid.origin.position.y,
++        )
++        candidates = find_frontier_candidates(
++            self.latest_map.data,
++            info,
++            robot_x,
++            robot_y,
++            min_frontier_size=cast(int, self.get_parameter("min_frontier_size").value),
++            min_goal_distance=cast(float, self.get_parameter("min_goal_distance").value),
++            max_goal_distance=cast(float, self.get_parameter("max_goal_distance").value),
++            free_threshold=cast(int, self.get_parameter("free_threshold").value),
++        )
++        available = filter_cooldown_candidates(candidates, self.cooled_frontiers, self._now_seconds())
++        return available[0] if available else None
++
++    def _goal_response_callback(self, future: Any) -> None:
++        goal_handle = future.result()
++        if not goal_handle.accepted:
++            self.get_logger().warning(f"frontier goal {self.current_goal_key} was rejected")
++            self._cool_current_frontier()
++            self._clear_current_goal()
++            return
++
++        self.goal_handle = goal_handle
++        result_future = goal_handle.get_result_async()
++        result_future.add_done_callback(self._goal_result_callback)
++
++    def _goal_result_callback(self, future: Any) -> None:
++        result = future.result()
++        status = result.status
++        if status == GoalStatus.STATUS_SUCCEEDED:
++            self.get_logger().info(f"frontier goal {self.current_goal_key} succeeded")
++        else:
++            self.get_logger().warning(f"frontier goal {self.current_goal_key} finished with status {status}")
++            self._cool_current_frontier()
++        self._clear_current_goal()
++
++    def _cancel_timed_out_goal(self) -> None:
++        if self.goal_handle is None or self.current_goal_sent_seconds is None:
++            return
++
++        timeout = cast(float, self.get_parameter("goal_timeout").value)
++        if self._now_seconds() - self.current_goal_sent_seconds <= timeout:
++            return
++
++        self.get_logger().warning(f"frontier goal {self.current_goal_key} timed out; canceling")
++        self.goal_handle.cancel_goal_async()
++        self._cool_current_frontier()
++        self._clear_current_goal()
++
++    def _cool_current_frontier(self) -> None:
++        if self.current_goal_key is None:
++            return
++        cooldown = cast(float, self.get_parameter("frontier_cooldown").value)
++        self.cooled_frontiers[self.current_goal_key] = self._now_seconds() + cooldown
++
++    def _clear_current_goal(self) -> None:
++        self.current_goal_key = None
++        self.current_goal_sent_seconds = None
++        self.goal_handle = None
++
++    def _now_seconds(self) -> float:
++        return self.get_clock().now().nanoseconds / 1e9
++
++
++def main(args=None) -> None:
++    explorer = None
++    try:
++        rclpy.init(args=args)
++        explorer = FrontierExplorer()
++        rclpy.spin(explorer)
++    except (KeyboardInterrupt, ExternalShutdownException):
++        pass
++    finally:
++        if explorer is not None:
++            explorer.destroy_node()
++        if rclpy.ok():
++            rclpy.shutdown()
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/src/kibot_one_control/launch/frontier_exploration.launch.py b/src/kibot_one_control/launch/frontier_exploration.launch.py
+new file mode 100644
+index 0000000..a255647
+--- /dev/null
++++ b/src/kibot_one_control/launch/frontier_exploration.launch.py
+@@ -0,0 +1,55 @@
++from pathlib import Path
++
++from ament_index_python.packages import get_package_share_directory  # type: ignore
++from launch import LaunchDescription  # type: ignore
++from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription  # type: ignore
++from launch.conditions import IfCondition  # type: ignore
++from launch.launch_description_sources import PythonLaunchDescriptionSource  # type: ignore
++from launch.substitutions import LaunchConfiguration  # type: ignore
++from launch_ros.actions import Node  # type: ignore
++
++
++def generate_launch_description() -> LaunchDescription:
++    sim_share = Path(get_package_share_directory("kibot_one_sim"))
++    nav2_launch = sim_share / "launch" / "nav2.launch.py"
++
++    world_arg = DeclareLaunchArgument(
++        "world",
++        default_value=str(sim_share / "worlds" / "kibot_one_obstacles.world.sdf"),
++        description="Gazebo 世界文件的绝对路径。",
++    )
++    use_rviz_arg = DeclareLaunchArgument(
++        "use_rviz",
++        default_value="false",
++        description="是否启动 RViz Nav2 默认视图。",
++    )
++    start_explorer_arg = DeclareLaunchArgument(
++        "start_explorer",
++        default_value="true",
++        description="是否启动 frontier_explorer 节点。",
++    )
++
++    start_nav2 = IncludeLaunchDescription(
++        PythonLaunchDescriptionSource(str(nav2_launch)),
++        launch_arguments={
++            "world": LaunchConfiguration("world"),
++            "use_rviz": LaunchConfiguration("use_rviz"),
++        }.items(),
++    )
++
++    explorer = Node(
++        package="kibot_one_control",
++        executable="frontier_explorer",
++        name="frontier_explorer",
++        output="screen",
++        parameters=[{"use_sim_time": True}],
++        condition=IfCondition(LaunchConfiguration("start_explorer")),
++    )
++
++    return LaunchDescription([
++        world_arg,
++        use_rviz_arg,
++        start_explorer_arg,
++        start_nav2,
++        explorer,
++    ])
+diff --git a/src/kibot_one_control/package.xml b/src/kibot_one_control/package.xml
+index 7dff8b2..0384b45 100644
+--- a/src/kibot_one_control/package.xml
++++ b/src/kibot_one_control/package.xml
+@@ -9,14 +9,17 @@
+ 
+   <depend>rclpy</depend>
+   <depend>ament_index_python</depend>
++  <depend>action_msgs</depend>
+   <depend>geometry_msgs</depend>
+   <depend>kibot_one_interface</depend>
+   <depend>kibot_one_sim</depend>
+   <depend>launch</depend>
+   <depend>launch_ros</depend>
+   <depend>nav_msgs</depend>
++  <depend>nav2_msgs</depend>
+   <depend>rcl_interfaces</depend>
+   <depend>sensor_msgs</depend>
++  <depend>tf2_ros</depend>
+ 
+   <export>
+     <build_type>ament_python</build_type>
+diff --git a/src/kibot_one_control/setup.py b/src/kibot_one_control/setup.py
+index 2b11070..f8f6398 100644
+--- a/src/kibot_one_control/setup.py
++++ b/src/kibot_one_control/setup.py
+@@ -14,6 +14,7 @@ setup(
+         ('share/' + package_name, ['package.xml']),
+         ('share/' + package_name + '/launch', [
+             'launch/control_console.launch.py',
++            'launch/frontier_exploration.launch.py',
+             'launch/follow_phase1.launch.py',
+             'launch/follow_phase2.launch.py',
+         ]),
+@@ -32,6 +33,7 @@ setup(
+             'mode_control = kibot_one_control.mode_control:main',
+             'flag_pose_publisher = kibot_one_control.flag_pose_publisher:main',
+             'follow_controller = kibot_one_control.follow_controller:main',
++            'frontier_explorer = kibot_one_control.frontier_explorer:main',
+         ],
+     },
+ )
+diff --git a/src/kibot_one_control/test/test_frontier_core.py b/src/kibot_one_control/test/test_frontier_core.py
+new file mode 100644
+index 0000000..b8e8e05
+--- /dev/null
++++ b/src/kibot_one_control/test/test_frontier_core.py
+@@ -0,0 +1,66 @@
++from kibot_one_control.frontier_core import GridInfo
++from kibot_one_control.frontier_core import filter_cooldown_candidates
++from kibot_one_control.frontier_core import find_frontier_candidates
++
++
++def test_find_frontier_candidates_groups_unknown_cells_next_to_free_space() -> None:
++    grid = GridInfo(width=5, height=5, resolution=1.0, origin_x=0.0, origin_y=0.0)
++    data = [
++        100, 100, 100, 100, 100,
++        100, 0, 0, -1, 100,
++        100, 0, 0, -1, 100,
++        100, 100, 100, 100, 100,
++        100, 100, 100, 100, 100,
++    ]
++
++    candidates = find_frontier_candidates(
++        data,
++        grid,
++        robot_x=1.5,
++        robot_y=1.5,
++        min_frontier_size=2,
++        max_goal_distance=5.0,
++    )
++
++    assert len(candidates) == 1
++    assert candidates[0].key == "3:2"
++    assert candidates[0].map_x == 2.5
++    assert candidates[0].map_y == 2.0
++    assert candidates[0].size == 2
++
++
++def test_find_frontier_candidates_filters_small_and_far_frontiers() -> None:
++    grid = GridInfo(width=5, height=5, resolution=1.0, origin_x=0.0, origin_y=0.0)
++    data = [
++        0, -1, 100, 100, 100,
++        100, 100, 100, 100, 100,
++        100, 100, 100, 100, 100,
++        100, 100, 100, 0, -1,
++        100, 100, 100, 0, -1,
++    ]
++
++    candidates = find_frontier_candidates(
++        data,
++        grid,
++        robot_x=0.5,
++        robot_y=0.5,
++        min_frontier_size=2,
++        max_goal_distance=2.0,
++    )
++
++    assert candidates == []
++
++
++def test_filter_cooldown_candidates_removes_recent_failures() -> None:
++    grid = GridInfo(width=5, height=5, resolution=1.0, origin_x=0.0, origin_y=0.0)
++    data = [
++        100, 100, 100, 100, 100,
++        100, 0, 0, -1, 100,
++        100, 0, 0, -1, 100,
++        100, 100, 100, 100, 100,
++        100, 100, 100, 100, 100,
++    ]
++    candidates = find_frontier_candidates(data, grid, 1.5, 1.5, min_frontier_size=2, max_goal_distance=5.0)
++
++    assert filter_cooldown_candidates(candidates, {candidates[0].key: 20.0}, now_seconds=10.0) == []
++    assert filter_cooldown_candidates(candidates, {candidates[0].key: 20.0}, now_seconds=21.0) == candidates

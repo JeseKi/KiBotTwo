@@ -52,6 +52,26 @@ nav:
               - 使用记录: embodied-ai-roadmap/02-Nav2-导航接入/evidence/usage.md
               - 验证日志: embodied-ai-roadmap/02-Nav2-导航接入/evidence/validation-log.md
               - Diff 摘要: embodied-ai-roadmap/02-Nav2-导航接入/evidence/diff-summary.md
+      - 03 边界探索:
+          - 路线图:
+              - 总览: embodied-ai-roadmap/03-边界探索/roadmap/index.md
+              - 01 拆出 frontier 核心算法: embodied-ai-roadmap/03-边界探索/roadmap/01-拆出-frontier-核心算法.md
+              - 02 接入 ROS2 探索节点: embodied-ai-roadmap/03-边界探索/roadmap/02-接入-ROS2-探索节点.md
+              - 03 增加探索 launch 入口: embodied-ai-roadmap/03-边界探索/roadmap/03-增加探索-launch-入口.md
+              - 04 验证探索闭环: embodied-ai-roadmap/03-边界探索/roadmap/04-验证探索闭环.md
+              - 05 交付阶段 06 契约: embodied-ai-roadmap/03-边界探索/roadmap/05-交付阶段-06-契约.md
+          - 参考:
+              - Frontier 契约: embodied-ai-roadmap/03-边界探索/reference/frontier-contract.md
+              - 文件计划: embodied-ai-roadmap/03-边界探索/reference/file-plan.md
+              - Final Runtime: embodied-ai-roadmap/03-边界探索/reference/final-runtime/README.md
+          - 清单:
+              - Low: embodied-ai-roadmap/03-边界探索/checklist/low.md
+              - Medium: embodied-ai-roadmap/03-边界探索/checklist/medium.md
+              - High: embodied-ai-roadmap/03-边界探索/checklist/high.md
+          - 证据:
+              - 使用记录: embodied-ai-roadmap/03-边界探索/evidence/usage.md
+              - 验证日志: embodied-ai-roadmap/03-边界探索/evidence/validation-log.md
+              - Diff 摘要: embodied-ai-roadmap/03-边界探索/evidence/diff-summary.md
 
 markdown_extensions:
   - admonition

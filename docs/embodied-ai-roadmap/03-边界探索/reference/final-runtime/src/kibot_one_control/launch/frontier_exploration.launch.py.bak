@@ -1,0 +1,55 @@
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory  # type: ignore
+from launch import LaunchDescription  # type: ignore
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription  # type: ignore
+from launch.conditions import IfCondition  # type: ignore
+from launch.launch_description_sources import PythonLaunchDescriptionSource  # type: ignore
+from launch.substitutions import LaunchConfiguration  # type: ignore
+from launch_ros.actions import Node  # type: ignore
+
+
+def generate_launch_description() -> LaunchDescription:
+    sim_share = Path(get_package_share_directory("kibot_one_sim"))
+    nav2_launch = sim_share / "launch" / "nav2.launch.py"
+
+    world_arg = DeclareLaunchArgument(
+        "world",
+        default_value=str(sim_share / "worlds" / "kibot_one_obstacles.world.sdf"),
+        description="Gazebo 世界文件的绝对路径。",
+    )
+    use_rviz_arg = DeclareLaunchArgument(
+        "use_rviz",
+        default_value="false",
+        description="是否启动 RViz Nav2 默认视图。",
+    )
+    start_explorer_arg = DeclareLaunchArgument(
+        "start_explorer",
+        default_value="true",
+        description="是否启动 frontier_explorer 节点。",
+    )
+
+    start_nav2 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(str(nav2_launch)),
+        launch_arguments={
+            "world": LaunchConfiguration("world"),
+            "use_rviz": LaunchConfiguration("use_rviz"),
+        }.items(),
+    )
+
+    explorer = Node(
+        package="kibot_one_control",
+        executable="frontier_explorer",
+        name="frontier_explorer",
+        output="screen",
+        parameters=[{"use_sim_time": True}],
+        condition=IfCondition(LaunchConfiguration("start_explorer")),
+    )
+
+    return LaunchDescription([
+        world_arg,
+        use_rviz_arg,
+        start_explorer_arg,
+        start_nav2,
+        explorer,
+    ])
