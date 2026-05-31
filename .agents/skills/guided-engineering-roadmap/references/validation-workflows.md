@@ -37,29 +37,36 @@
 
 探针分支证明“这条实现路线能做出来”；文档复测闭环证明“读者只看 roadmap/evidence 能不能重新做出来”。两者职责不同。编写可运行系统、配置、launch、API、前端、仿真或任何可验证行为的具体 part 时，完成文档后必须执行复测闭环。
 
-文档复测必须调用 sub agent。sub agent 是独立读者，不继承主 Agent 的探针实现上下文；如果当前工具、权限或策略无法启动 sub agent，不能把主 Agent 自己复测包装成通过，只能记录为“复测阻塞”或“复测未通过”。
+复测闭环的硬要求：
 
-复测 sub agent 的实际任务只有一件事：按 `roadmap/` 的步骤一步一步编写代码，然后运行文档承诺的验证命令，最后把复测产生的非 `docs/` patch 与 `evidence/reference-runtime.patch` 或参考分支 patch 做一致性比较。patch 必须字节级一致；只允许忽略 CRLF/LF 这类换行符格式差异。不一致就是复测失败，sub agent 必须把不一致点、缺失文档步骤和建议修正反馈给主 Agent。
+- 必须调用 sub agent。sub agent 是独立读者，不继承主 Agent 的探针实现上下文。
+- sub agent 的实际任务只有一件事：按 `roadmap/` 步骤一步一步编写代码，运行文档承诺的验证命令，最后把非 `docs/` patch 与审计 oracle 做一致性比较并报告结果；主 Agent 只能复核，不能替代这一步。
+- 如果当前工具、权限或策略无法启动 sub agent，复测不能判通过，只能记录为“复测阻塞”或“复测未通过”。
+- 有成品分支、探针分支或参考实现分支时，复测分支的非 `docs/` patch 必须与同一 baseline 上的 `evidence/reference-runtime.patch` 或参考分支 patch 字节级一致；只允许忽略 CRLF/LF 换行符差异。
+- `reference/final-runtime/*.bak` 和 `evidence/reference-runtime.patch` 是审计 oracle，不是实现来源。
 
-复测闭环的目标：
+复测闭环要验证：
 
 - 验证 `roadmap/` 中的步骤是否足以让人手写代码。
 - 验证 `evidence/usage.md` 的命令是否可复现。
 - 发现文档遗漏、顺序错误、参数不完整、验收条件不清或清理步骤不足。
 - 根据复测结果修正文档，而不是为了通过验证直接从功能分支同步代码。
-- 验证只按 roadmap 步骤重做出来的非文档产物与成品分支的 patch 字节级一致；只允许忽略换行符格式差异。
 
 如果当前 part 有成品分支、探针分支或参考实现分支，例如 `feat/<part>`，文档复测通过必须同时满足：
 
 1. 运行时验收通过。
-2. 文档包含 `reference/final-runtime/`，其中以 `.bak` 文件保存所有非 `docs/` diff 涉及文件的最终副本。
+2. 文档包含 `reference/final-runtime/`，其中以 `.bak` 文件保存所有非 `docs/` diff 涉及文件的最终副本，目录结构保留项目相对路径。
 3. 复测分支中除 `docs/` 外的完整 patch，与成品分支相对同一 baseline 的非 `docs/` patch 字节级一致；只允许忽略换行符格式差异。
 
-不允许用“功能等价”“可解释差异”“文件名相同”“测试都通过”替代 patch 字节级一致。只有 `docs/` 下的差异可以不一致，因为复测后的文档可能已经被修正。
+不通过或阻塞判定：
 
-`reference/final-runtime/*.bak` 和 `evidence/reference-runtime.patch` 是复测审计 oracle，不是复测实现来源。复测 sub agent 不得通过直接复制 `.bak`、套用 reference patch、查看探针/成品分支源码来构造 runtime 结果；它必须先按 roadmap 步骤手写或编辑 runtime，再用 `.bak` 和 patch 做一致性审计。如果 sub agent 只能靠复制 oracle 才能得到字节级一致，说明 roadmap/reference 仍然缺少实现细节，复测必须判失败并要求修正文档。
-
-主 Agent 也不得用新增“完整最终代码清单”来修复复测失败。任何把最终 runtime 文件完整贴出、把 `.bak` 转写成普通 reference、或把 reference patch 变成操作清单的做法，都视为绕过 roadmap；即使 sub agent 能照抄并得到一致 patch，也必须判为文档复测不通过。
+- 不能启动 sub agent：阻塞或未通过。
+- 运行时验收失败：未通过。
+- 非 `docs/` patch 不一致：未通过，不能用“功能等价”“可解释差异”“文件名相同”或“测试都通过”替代。
+- sub agent 复制 `.bak`、套用 reference patch、查看探针/成品分支源码来构造 runtime：未通过。
+- sub agent 报告必须依赖 oracle 才能得到一致结果：未通过，说明 roadmap/reference 缺实现细节。
+- 主 Agent 新增“完整最终代码清单”、把 `.bak` 转写成普通 reference、或把 reference patch 变成操作清单：未通过，必须撤回并改为补充增量步骤。
+- 只有 `docs/` 下的差异可以不一致，因为复测后的文档可能已经被修正。
 
 默认流程：
 
@@ -71,11 +78,9 @@
 6. 复测者发现不一致时，记录复现命令、实际结果、文档缺口和可能解决方案。
 7. 如果有成品分支或探针分支，主 Agent 必须先核对复测分支的非 `docs/` 文件与 `reference/final-runtime/` 下对应 `.bak` 文件完全一致。
 8. 主 Agent 必须再对比“成品分支相对 baseline 的非 `docs/` patch”和“复测分支相对同一 baseline 的非 `docs/` patch”。两者必须字节级一致；只允许忽略换行符格式差异。
-9. 如果第 7 或第 8 步不一致，复测失败。先修正文档，再从干净 baseline 重新复测；不要在复测分支里直接参考成品分支、复制 `.bak` 或套用 patch 后宣称通过。
-10. 如果 sub agent 报告“必须依赖 `.bak` / reference patch 才能达到一致”，复测失败。主 Agent 必须把缺失实现细节补进 `roadmap/` 或 `reference/`，再重新启动 sub agent 复测。
-11. 主 Agent 根据复测反馈修正 `roadmap/`、`reference/`、`checklist/` 或 `evidence/usage.md`，然后重新复测受影响路径。
-12. 复测通过后，清理临时 launch、服务、仿真、dev server、后台进程、临时 worktree 和临时分支。
-13. 正式分支只保留文档改动和用户明确要求保留的代码；复测分支中的功能代码不要混入正式交付，除非用户明确要求。
+9. 未通过时，先修正文档，再从干净 baseline 重新复测；不要在复测分支里直接参考 oracle 后宣称通过。
+10. 复测通过后，清理临时 launch、服务、仿真、dev server、后台进程、临时 worktree 和临时分支。
+11. 正式分支只保留文档改动和用户明确要求保留的代码；复测分支中的功能代码不要混入正式交付，除非用户明确要求。
 
 推荐的完全一致审计方式：
 
@@ -104,7 +109,7 @@ diff -u /tmp/reference.diff /tmp/redo.diff
 不要从功能来源分支同步代码，不要复制 reference/final-runtime/*.bak，不要套用 reference-runtime.patch。
 在新分支或临时 worktree 中实际编辑代码并运行验证。
 如果文档步骤和实际结果不一致，记录不一致、复现命令和可能解决方案。
-验证完成后，报告相对 baseline 的非 docs patch；主 Agent 会用它和成品分支 patch 做字节级一致审计，只允许忽略换行符格式差异。
+验证完成后，生成相对 baseline 的非 docs patch，并与 evidence/reference-runtime.patch 或参考分支 patch 做字节级一致比较；只允许忽略换行符格式差异。报告比较结果、命令和差异摘要；主 Agent 会复核你的审计。
 验证后清理残留进程。
 最终报告通过/不通过、关键命令结果、发现的问题和写入文件。
 ```
@@ -123,7 +128,6 @@ diff -u /tmp/reference.diff /tmp/redo.diff
 - 如果是文档遗漏，修文档并重新验证受影响步骤。
 - 如果是环境依赖，补 `reference/dependencies.md` 或 `evidence/usage.md` 的依赖检查和安装说明。
 - 如果是目标行为边界，补 `roadmap/index.md` 的系统预期状态、完成边界和失败判读。
-- 如果是非 `docs/` patch 与成品分支不一致，必须修正文档并从干净 baseline 重做；不能把差异记录为“可接受”后通过。
-- 如果复测者只能靠复制 `.bak` 或套用 reference patch 才能得到一致结果，必须修正文档主线；不能把 oracle 复制视为复测通过。
-- 如果主 Agent 的修复是新增完整最终代码清单，必须撤回该修复，改为补充对应 roadmap 章节的增量实现步骤。
+- 如果是 patch 审计失败，修正文档主线并从干净 baseline 重做；不能把差异记录为“可接受”后通过。
+- 如果修复方式变成复制 oracle 或新增完整最终代码清单，必须撤回，改为补充对应 roadmap 章节的增量实现步骤。
 - 如果复测无法安全完成，记录阻塞条件、已执行命令、最后可信状态和下一步解法。

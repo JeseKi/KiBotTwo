@@ -128,34 +128,18 @@ docs/<目标>-tutorial/
 - 完整文件只能放在章节末尾作为汇总，或放入 `reference/` / `evidence/`，不能替代逐步讲解。
 - 每个代码片段都应说明放到哪个文件、放在什么上下文附近，以及执行到这一步后可以观察到什么。
 
-禁止用“完整最终代码清单”绕过增量教程：
+禁止用完整答案绕过增量教程：
 
 - 不要新增 `implementation-artifacts.md`、`final-code.md`、`complete-files.md` 或任何等价文件，把所有最终 runtime 文件完整贴出来让复测者照抄。
 - 不要把 `reference/final-runtime/*.bak` 改名、搬运或转写成普通 reference 来充当实现步骤。
 - 不要把 `evidence/reference-runtime.patch` 拆成“教程步骤”让复测者套 patch。
 - 如果复测失败是因为 roadmap 缺少实现细节，修复方式是把缺失决策补进对应章节的增量步骤、上下文说明、片段顺序和验收点，而不是新增一份完整答案。
-- 完整 artifact 只能作为审计 oracle 或章节末尾的核对材料；读者不依赖它也应能按主线步骤写出代码。
 
-对 YAML、launch、schema、CI 配置、机器人/仿真参数、部署清单等对缩进、重复 key、插件名或运行时组合敏感的文件，必须额外提供最终完整 artifact：
+对 YAML、launch、schema、CI 配置、机器人/仿真参数、部署清单等对缩进、重复 key、插件名或运行时组合敏感的文件，可以额外提供章节末尾汇总或 reference artifact，但它只能用于核对，不能替代逐步讲解。
 
-- 可以放在章节末尾、`reference/`。
-- 必须能让读者把增量片段合并成与成品分支一致的最终文件。
-- 如果当前 part 有成品分支或探针分支，最终 artifact 对应的非 `docs/` 文件必须在文档复测中与成品分支完全一致。
+如果当前 part 是从成品分支或探针分支提炼，`reference/final-runtime/` 和 `evidence/reference-runtime.patch` 的生成、用途和审计规则统一按 `validation-workflows.md` 执行。这里不重复定义复测通过标准。
 
-如果当前 part 是从成品分支或探针分支的 diff 提炼教程，必须把所有非 `docs/` diff 涉及的最终文件以 `.bak` 后缀放入：
-
-```text
-reference/final-runtime/
-```
-
-目录结构应保留项目相对路径，例如：
-
-```text
-reference/final-runtime/src/example_pkg/config/app.yaml.bak
-reference/final-runtime/src/example_pkg/launch/app.launch.py.bak
-```
-
-roadmap 章节仍然按增量片段解释实现过程；`reference/final-runtime/` 中的 `.bak` 文件是最终合并结果和复测审计 oracle，不能省略。但 `.bak` 不能替代 roadmap/reference 的实施说明：独立复测者必须能先按 roadmap 步骤一步一步手写或编辑 runtime，再用 `.bak` 和 patch 做最终审计。如果只能靠复制 `.bak` 才能达到字节级一致，说明文档仍缺少实现细节，文档复测不通过。
+写作层面的判断标准：读者不依赖完整 artifact、`.bak` 或 patch，也应该能按 `roadmap/` 主线一步一步写出代码。
 
 章节粒度规则：
 

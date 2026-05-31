@@ -32,9 +32,9 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 6. 如果当前 part 是基线调查，Agent 应该读取项目并写出事实材料，而不是把调查工作丢给用户。
 7. 如果当前 part 是实现引导，Agent 应该把实施步骤写进 `roadmap/`，把查阅性材料放进 `reference/`，把完成标准放进 `checklist/`。
 8. 如果是在写顶层全局规划，只做路线分解，不默认创建探针分支。
-9. 如果是在编写某个具体 part，默认启用探针分支模式并产出 `evidence/`；除非用户显式要求“不做探针”“只写静态规划”或当前环境无法安全创建分支。
-10. 当前 part 的文档完成后，必须执行“文档复测闭环”：启动 sub agent 作为独立复测者，只按刚写好的 roadmap 步骤一步一步编写代码、构建和验证，最后再做 patch 审计；如果当前工具或策略无法启动 sub agent，文档复测不能判通过，必须记录为阻塞或未通过。存在成品分支或探针分支时，必须在 `reference/final-runtime/` 保存非 `docs/` diff 涉及的最终文件 `.bak` 副本，且复测产出的非 `docs/` patch 必须与成品分支相对同一 baseline 的非 `docs/` patch 字节级一致；只允许忽略换行符格式差异，否则文档复测不通过。
-11. 根据复测反馈修正文档和 evidence；复测发现的问题不能只留在聊天里。
+9. 编写具体 part 时默认启用探针分支模式并产出 `evidence/`；跳过条件见 `references/validation-workflows.md`。
+10. 当前 part 的文档完成后，按 `references/validation-workflows.md` 执行文档复测闭环：必须由 sub agent 独立复测，且有参考实现时必须通过非 `docs/` patch 字节级一致审计。
+11. 根据复测反馈修正文档和 evidence；失败、阻塞和修正结果不能只留在聊天里。
 12. 每个 part 结束时，记录它解锁了哪些后续 part。
 
 探针分支和文档复测闭环的详细规则见：`references/validation-workflows.md`。
@@ -54,7 +54,7 @@ description: Use when the user wants a guided engineering tutorial or roadmap in
 - 把未知事项标记为“需要运行时确认”。
 - 不要把 roadmap 写成只包含标题的空路线。
 - 不要把 reference 写成主线教程。
-- 不要为了让复测 patch 一致而新增“完整最终代码清单”“implementation artifacts”“final code listing”这类等价于 `.bak` 的文件；这属于绕过 roadmap，不算修复文档。
+- 不要用“完整最终代码清单”、复制 `.bak`、套用 reference patch 或功能等价说明绕过 roadmap 复测。
 - 不要把 checklist 写成泛泛愿望；尽量写成可观察结果。
 - 不要因为某类目录暂时为空，就强行创建文件。
 - 不要因为文档模板没有全部填满，就否定已经通过核心验收的 part。
