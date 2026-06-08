@@ -1,0 +1,66 @@
+from kibot_one_control.frontier_core import GridInfo
+from kibot_one_control.frontier_core import filter_cooldown_candidates
+from kibot_one_control.frontier_core import find_frontier_candidates
+
+
+def test_find_frontier_candidates_groups_unknown_cells_next_to_free_space() -> None:
+    grid = GridInfo(width=5, height=5, resolution=1.0, origin_x=0.0, origin_y=0.0)
+    data = [
+        100, 100, 100, 100, 100,
+        100, 0, 0, -1, 100,
+        100, 0, 0, -1, 100,
+        100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100,
+    ]
+
+    candidates = find_frontier_candidates(
+        data,
+        grid,
+        robot_x=1.5,
+        robot_y=1.5,
+        min_frontier_size=2,
+        max_goal_distance=5.0,
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].key == "3:2"
+    assert candidates[0].map_x == 2.5
+    assert candidates[0].map_y == 2.0
+    assert candidates[0].size == 2
+
+
+def test_find_frontier_candidates_filters_small_and_far_frontiers() -> None:
+    grid = GridInfo(width=5, height=5, resolution=1.0, origin_x=0.0, origin_y=0.0)
+    data = [
+        0, -1, 100, 100, 100,
+        100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100,
+        100, 100, 100, 0, -1,
+        100, 100, 100, 0, -1,
+    ]
+
+    candidates = find_frontier_candidates(
+        data,
+        grid,
+        robot_x=0.5,
+        robot_y=0.5,
+        min_frontier_size=2,
+        max_goal_distance=2.0,
+    )
+
+    assert candidates == []
+
+
+def test_filter_cooldown_candidates_removes_recent_failures() -> None:
+    grid = GridInfo(width=5, height=5, resolution=1.0, origin_x=0.0, origin_y=0.0)
+    data = [
+        100, 100, 100, 100, 100,
+        100, 0, 0, -1, 100,
+        100, 0, 0, -1, 100,
+        100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100,
+    ]
+    candidates = find_frontier_candidates(data, grid, 1.5, 1.5, min_frontier_size=2, max_goal_distance=5.0)
+
+    assert filter_cooldown_candidates(candidates, {candidates[0].key: 20.0}, now_seconds=10.0) == []
+    assert filter_cooldown_candidates(candidates, {candidates[0].key: 20.0}, now_seconds=21.0) == candidates
