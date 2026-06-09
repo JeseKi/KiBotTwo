@@ -1,0 +1,66 @@
+from typing import cast
+
+import rclpy
+from kibot_one_interface.msg import FlagDetection  # type: ignore
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+from sensor_msgs.msg import Image  # type: ignore
+
+from kibot_one_control.flag_detection_core import detect_red_flag_pixels
+
+
+class FlagDetector(Node):
+    def __init__(self) -> None:
+        super().__init__("flag_detector")
+        self.declare_parameters(
+            namespace="",
+            parameters=[
+                ("image_topic", "/camera/image_raw"),
+                ("detection_topic", "/flag_detection"),
+                ("min_red", 120),
+                ("red_margin", 45),
+                ("min_pixel_count", 80),
+            ],
+        )
+        self.detection_pub = self.create_publisher(
+            msg_type=FlagDetection,
+            topic=cast(str, self.get_parameter("detection_topic").value),
+            qos_profile=10,
+        )
+        self.image_sub = self.create_subscription(
+            msg_type=Image,
+            topic=cast(str, self.get_parameter("image_topic").value),
+            callback=self._image_callback,
+            qos_profile=qos_profile_sensor_data,
+        )
+
+    def _image_callback(self, msg: Image) -> None:
+        detection = detect_red_flag_pixels(
+            bytes(msg.data),
+            msg.width,
+            msg.height,
+            msg.encoding,
+            min_red=cast(int, self.get_parameter("min_red").value),
+            red_margin=cast(int, self.get_parameter("red_margin").value),
+            min_pixel_count=cast(int, self.get_parameter("min_pixel_count").value),
+        )
+        output = FlagDetection()
+        output.header = msg.header
+        output.detected = detection.detected
+        output.center_x = detection.center_x
+        output.center_y = detection.center_y
+        output.image_width = msg.width
+        output.image_height = msg.height
+        output.pixel_count = detection.pixel_count
+        output.confidence = detection.confidence
+        self.detection_pub.publish(output)
+
+
+def main() -> None:
+    rclpy.init()
+    node = FlagDetector()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()

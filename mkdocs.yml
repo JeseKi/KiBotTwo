@@ -72,6 +72,27 @@ nav:
               - 使用记录: embodied-ai-roadmap/03-边界探索/evidence/usage.md
               - 验证日志: embodied-ai-roadmap/03-边界探索/evidence/validation-log.md
               - Diff 摘要: embodied-ai-roadmap/03-边界探索/evidence/diff-summary.md
+      - 04 视觉旗帜检测:
+          - 路线图:
+              - 总览: embodied-ai-roadmap/04-视觉旗帜检测/roadmap/index.md
+              - 01 定义视觉检测事件: embodied-ai-roadmap/04-视觉旗帜检测/roadmap/01-定义视觉检测事件.md
+              - 02 接入前向相机与图像桥接: embodied-ai-roadmap/04-视觉旗帜检测/roadmap/02-接入前向相机与图像桥接.md
+              - 03 实现红色旗面检测核心: embodied-ai-roadmap/04-视觉旗帜检测/roadmap/03-实现红色旗面检测核心.md
+              - 04 接入 flag_detector 节点与 launch: embodied-ai-roadmap/04-视觉旗帜检测/roadmap/04-接入-flag-detector-节点与-launch.md
+              - 05 验证视觉闭环并交付契约: embodied-ai-roadmap/04-视觉旗帜检测/roadmap/05-验证视觉闭环并交付契约.md
+          - 参考:
+              - 视觉契约: embodied-ai-roadmap/04-视觉旗帜检测/reference/vision-contract.md
+              - 依赖: embodied-ai-roadmap/04-视觉旗帜检测/reference/dependencies.md
+              - 文件计划: embodied-ai-roadmap/04-视觉旗帜检测/reference/file-plan.md
+              - Final Runtime: embodied-ai-roadmap/04-视觉旗帜检测/reference/final-runtime/README.md
+          - 清单:
+              - Low: embodied-ai-roadmap/04-视觉旗帜检测/checklist/low.md
+              - Medium: embodied-ai-roadmap/04-视觉旗帜检测/checklist/medium.md
+              - High: embodied-ai-roadmap/04-视觉旗帜检测/checklist/high.md
+          - 证据:
+              - 使用记录: embodied-ai-roadmap/04-视觉旗帜检测/evidence/usage.md
+              - 验证日志: embodied-ai-roadmap/04-视觉旗帜检测/evidence/validation-log.md
+              - Diff 摘要: embodied-ai-roadmap/04-视觉旗帜检测/evidence/diff-summary.md
 
 markdown_extensions:
   - admonition

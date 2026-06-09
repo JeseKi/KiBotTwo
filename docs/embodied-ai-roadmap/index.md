@@ -12,9 +12,11 @@
 
 ## 当前推进位置
 
-当前 part：`04-视觉旗帜检测`（待展开）
+当前 part：`04B-YOLO-旗帜检测升级`（未开始，下一阶段）
 
-当前路线刚完成边界探索文档复测闭环。`00-系统基线` 已完成源码静态调查；`01-SLAM-建图与定位` 已有 SLAM 启动与参数基础；`02-Nav2-导航接入` 已通过完整仿真验收：Nav2 lifecycle active、costmap 正常发布、`NavigateToPose` 返回成功，并确认 Gazebo `/odom` 随目标执行前进。`03-边界探索` 已通过探针和严格 sub agent 复测：独立复测者只按 `roadmap/` 步骤手写 runtime，运行构建、单测、launch、无仿真冒烟和 35s 完整仿真，最终非 `docs/` patch 与 `evidence/reference-runtime.patch` 字节级一致。
+当前路线已经完成视觉旗帜检测的最小闭环。`00-系统基线` 已完成源码静态调查；`01-SLAM-建图与定位` 已有 SLAM 启动与参数基础；`02-Nav2-导航接入` 已通过完整仿真验收：Nav2 lifecycle active、costmap 正常发布、`NavigateToPose` 返回成功，并确认 Gazebo `/odom` 随目标执行前进。`03-边界探索` 已通过探针和严格 sub agent 复测：独立复测者只按 `roadmap/` 步骤手写 runtime，运行构建、单测、launch、无仿真冒烟和 35s 完整仿真，最终非 `docs/` patch 与 `evidence/reference-runtime.patch` 字节级一致。`04-视觉旗帜检测` 已完成探针、独立文档复测、可阅读性重写和重写后复测：新增 RGB camera、图像 bridge、`FlagDetection` 消息和 `flag_detector` 节点，构建、直接 pytest、topic 冒烟和 `/flag_detection` echo 均已验证；最终非 `docs/` patch 与 `evidence/reference-runtime.patch` 在换行归一化后字节一致。
+
+YOLO 现在被列为必须接入阶段。`04` 的颜色检测只作为视觉链路和消息契约的最小闭环保留，不能作为最终旗帜检测方案。下一阶段 `04B-YOLO-旗帜检测升级` 需要在复用 `/camera/image_raw` 与 `/flag_detection` 契约的前提下接入 YOLO 推理，并让后续 `05` 和 `06` 依赖 YOLO 版检测能力。
 
 `00` 和 `01` 仍保留旧版平铺文件结构；从 `02` 开始使用 `roadmap/`、`reference/`、`checklist/`、`evidence/` 四类子目录。
 
@@ -28,6 +30,9 @@
 6. 使用 `02-Nav2-导航接入/checklist/low.md`、`medium.md`、`high.md` 分层验收。
 7. 进入 `03-边界探索/roadmap/index.md`，按阶段 03 的章节推进。
 8. 使用 `03-边界探索/checklist/low.md`、`medium.md`、`high.md` 分层验收。
+9. 进入 `04-视觉旗帜检测/roadmap/index.md`，按阶段 04 的章节推进。
+10. 使用 `04-视觉旗帜检测/checklist/low.md`、`medium.md`、`high.md` 分层验收。
+11. 进入 `04B-YOLO-旗帜检测升级`，用 YOLO 替换或并行升级颜色检测 backend。该阶段尚未展开详细文档。
 
 ## Part 状态表
 
@@ -37,9 +42,10 @@
 | `01-SLAM-建图与定位` | 已接入，待运行时确认 | `00-系统基线` | 已存在 | 解锁 Nav2、后续探索和全局坐标中的旗帜估计 |
 | `02-Nav2-导航接入` | 已完成 | `01-SLAM-建图与定位` | 已存在 | 解锁点到点导航和探索目标执行 |
 | `03-边界探索` | 已完成 | `02-Nav2-导航接入` | 已存在 | 解锁未知空间主动探索 |
-| `04-视觉旗帜检测` | 未开始 | `00-系统基线` | 未展开 | 解锁不依赖 `/flag_pose` 的旗帜发现事件 |
-| `05-旗帜位置估计` | 阻塞 | `04-视觉旗帜检测` | 未展开 | 解锁发现后靠近旗帜或转换到地图坐标系 |
-| `06-任务状态机` | 阻塞 | `04-视觉旗帜检测`，可复用 `03-边界探索` | 未展开 | 解锁探索、发现、靠近、停止的端到端任务编排 |
+| `04-视觉旗帜检测` | 已完成 | `00-系统基线` | 已存在 | 解锁 camera、image topic、`/flag_detection` 契约 |
+| `04B-YOLO-旗帜检测升级` | 未开始 | `04-视觉旗帜检测` | 未展开 | 解锁最终必须使用的 YOLO 旗帜检测能力 |
+| `05-旗帜位置估计` | 未开始 | `04B-YOLO-旗帜检测升级` | 未展开 | 解锁发现后靠近旗帜或转换到地图坐标系 |
+| `06-任务状态机` | 未开始 | `04B-YOLO-旗帜检测升级`，可复用 `03-边界探索` | 未展开 | 解锁探索、发现、靠近、停止的端到端任务编排 |
 | `07-集成演示` | 阻塞 | `06-任务状态机` | 未展开 | 解锁可复现 demo、复盘和下一轮优化路线 |
 
 ## Part 依赖图
@@ -51,13 +57,14 @@ flowchart TD
   P02["02 Nav2 导航接入<br/>NavigateToPose 与 costmap"]
   P03["03 边界探索<br/>frontier 选择与目标切换"]
   P04["04 视觉旗帜检测<br/>相机、图像 topic、检测事件"]
+  P04B["04B YOLO 旗帜检测升级<br/>模型推理、检测框、backend 切换"]
   P05["05 旗帜位置估计<br/>camera/base/map 中的位置判断"]
   P06["06 任务状态机<br/>探索、发现、靠近、停止"]
   P07["07 集成演示<br/>端到端验证与复盘"]
 
   P00 --> P01 --> P02 --> P03 --> P06 --> P07
-  P00 --> P04 --> P05 --> P06
-  P04 --> P06
+  P00 --> P04 --> P04B --> P05 --> P06
+  P04B --> P06
 ```
 
 ## Part 说明
@@ -212,6 +219,39 @@ flowchart TD
 
 解锁内容：
 
+- `04B-YOLO-旗帜检测升级`
+
+### 04B-YOLO-旗帜检测升级
+
+目的：
+
+- 在阶段 04 已建立的相机、图像 topic 和 `/flag_detection` 契约之上接入 YOLO。
+- 让旗帜检测从颜色阈值升级为模型推理，降低复杂背景、光照变化、遮挡和红色干扰物造成的误检/漏检。
+- 保持任务层接口稳定：后续状态机继续消费 `/flag_detection`，不直接绑定 YOLO runtime 细节。
+
+依赖：
+
+- `04-视觉旗帜检测`
+
+产出：
+
+- YOLO 模型选择、权重文件来源、类别定义和部署位置。
+- YOLO 推理节点或 `flag_detector` backend 切换方案。
+- 检测框到 `FlagDetection` 字段的映射规则，例如 bbox center、置信度和图像尺寸。
+- CPU/GPU 推理延迟、帧率、资源占用和失败模式记录。
+- 颜色检测 backend 与 YOLO backend 的取舍记录；最终任务链路必须使用 YOLO backend。
+
+完成条件：
+
+- 能从 `/camera/image_raw` 运行 YOLO 推理并发布 `/flag_detection`。
+- `/flag_detection` 不携带 Gazebo 直接提供的旗帜全局位姿。
+- 旗帜进入视野时 YOLO backend 能稳定输出 `detected=true`。
+- 旗帜离开视野或置信度低于阈值时能恢复 `detected=false`。
+- 已记录模型文件、推理依赖、启动命令和资源占用。
+- 后续 `05` 和 `06` 默认依赖 YOLO backend，而不是颜色阈值 backend。
+
+解锁内容：
+
 - `05-旗帜位置估计`
 - `06-任务状态机`
 
@@ -224,7 +264,7 @@ flowchart TD
 
 依赖：
 
-- `04-视觉旗帜检测`
+- `04B-YOLO-旗帜检测升级`
 
 产出：
 
@@ -252,7 +292,7 @@ flowchart TD
 依赖：
 
 - `03-边界探索`
-- `04-视觉旗帜检测`
+- `04B-YOLO-旗帜检测升级`
 
 可选依赖：
 

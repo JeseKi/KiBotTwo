@@ -1,0 +1,386 @@
+diff --git a/src/kibot_one_control/kibot_one_control/flag_detection_core.py b/src/kibot_one_control/kibot_one_control/flag_detection_core.py
+new file mode 100644
+index 0000000..1c86c16
+--- /dev/null
++++ b/src/kibot_one_control/kibot_one_control/flag_detection_core.py
+@@ -0,0 +1,71 @@
++from dataclasses import dataclass
++
++
++@dataclass(frozen=True)
++class ColorDetection:
++    detected: bool
++    center_x: float
++    center_y: float
++    pixel_count: int
++    confidence: float
++
++
++def detect_red_flag_pixels(
++    image_data: bytes,
++    width: int,
++    height: int,
++    encoding: str,
++    min_red: int = 120,
++    red_margin: int = 45,
++    min_pixel_count: int = 80,
++) -> ColorDetection:
++    channels = _channels_for_encoding(encoding)
++    if width <= 0 or height <= 0 or channels == 0:
++        return _empty_detection()
++
++    expected_size = width * height * channels
++    if len(image_data) < expected_size:
++        return _empty_detection()
++
++    red_count = 0
++    x_sum = 0
++    y_sum = 0
++    for index in range(0, expected_size, channels):
++        pixel = image_data[index:index + channels]
++        red, green, blue = _rgb_components(pixel, encoding)
++        if red >= min_red and red >= green + red_margin and red >= blue + red_margin:
++            pixel_index = index // channels
++            x_sum += pixel_index % width
++            y_sum += pixel_index // width
++            red_count += 1
++
++    if red_count < min_pixel_count:
++        return ColorDetection(False, 0.0, 0.0, red_count, red_count / float(width * height))
++
++    return ColorDetection(
++        detected=True,
++        center_x=x_sum / red_count,
++        center_y=y_sum / red_count,
++        pixel_count=red_count,
++        confidence=min(1.0, red_count / float(width * height)),
++    )
++
++
++def _channels_for_encoding(encoding: str) -> int:
++    normalized = encoding.lower()
++    if normalized in {"rgb8", "bgr8"}:
++        return 3
++    if normalized in {"rgba8", "bgra8"}:
++        return 4
++    return 0
++
++
++def _rgb_components(pixel: bytes, encoding: str) -> tuple[int, int, int]:
++    normalized = encoding.lower()
++    if normalized in {"rgb8", "rgba8"}:
++        return pixel[0], pixel[1], pixel[2]
++    return pixel[2], pixel[1], pixel[0]
++
++
++def _empty_detection() -> ColorDetection:
++    return ColorDetection(False, 0.0, 0.0, 0, 0.0)
+diff --git a/src/kibot_one_control/kibot_one_control/flag_detector.py b/src/kibot_one_control/kibot_one_control/flag_detector.py
+new file mode 100644
+index 0000000..5b38c06
+--- /dev/null
++++ b/src/kibot_one_control/kibot_one_control/flag_detector.py
+@@ -0,0 +1,66 @@
++from typing import cast
++
++import rclpy
++from kibot_one_interface.msg import FlagDetection  # type: ignore
++from rclpy.node import Node
++from rclpy.qos import qos_profile_sensor_data
++from sensor_msgs.msg import Image  # type: ignore
++
++from kibot_one_control.flag_detection_core import detect_red_flag_pixels
++
++
++class FlagDetector(Node):
++    def __init__(self) -> None:
++        super().__init__("flag_detector")
++        self.declare_parameters(
++            namespace="",
++            parameters=[
++                ("image_topic", "/camera/image_raw"),
++                ("detection_topic", "/flag_detection"),
++                ("min_red", 120),
++                ("red_margin", 45),
++                ("min_pixel_count", 80),
++            ],
++        )
++        self.detection_pub = self.create_publisher(
++            msg_type=FlagDetection,
++            topic=cast(str, self.get_parameter("detection_topic").value),
++            qos_profile=10,
++        )
++        self.image_sub = self.create_subscription(
++            msg_type=Image,
++            topic=cast(str, self.get_parameter("image_topic").value),
++            callback=self._image_callback,
++            qos_profile=qos_profile_sensor_data,
++        )
++
++    def _image_callback(self, msg: Image) -> None:
++        detection = detect_red_flag_pixels(
++            bytes(msg.data),
++            msg.width,
++            msg.height,
++            msg.encoding,
++            min_red=cast(int, self.get_parameter("min_red").value),
++            red_margin=cast(int, self.get_parameter("red_margin").value),
++            min_pixel_count=cast(int, self.get_parameter("min_pixel_count").value),
++        )
++        output = FlagDetection()
++        output.header = msg.header
++        output.detected = detection.detected
++        output.center_x = detection.center_x
++        output.center_y = detection.center_y
++        output.image_width = msg.width
++        output.image_height = msg.height
++        output.pixel_count = detection.pixel_count
++        output.confidence = detection.confidence
++        self.detection_pub.publish(output)
++
++
++def main() -> None:
++    rclpy.init()
++    node = FlagDetector()
++    try:
++        rclpy.spin(node)
++    finally:
++        node.destroy_node()
++        rclpy.shutdown()
+diff --git a/src/kibot_one_control/launch/flag_detection.launch.py b/src/kibot_one_control/launch/flag_detection.launch.py
+new file mode 100644
+index 0000000..6ad821f
+--- /dev/null
++++ b/src/kibot_one_control/launch/flag_detection.launch.py
+@@ -0,0 +1,55 @@
++from pathlib import Path
++
++from ament_index_python.packages import get_package_share_directory  # type: ignore
++from launch import LaunchDescription  # type: ignore
++from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription  # type: ignore
++from launch.conditions import IfCondition  # type: ignore
++from launch.launch_description_sources import PythonLaunchDescriptionSource  # type: ignore
++from launch.substitutions import LaunchConfiguration  # type: ignore
++from launch_ros.actions import Node  # type: ignore
++
++
++def generate_launch_description() -> LaunchDescription:
++    sim_share = Path(get_package_share_directory(package_name="kibot_one_sim"))
++    sim_launch = sim_share / "launch" / "sim_with_bridge.launch.py"
++
++    world_arg = DeclareLaunchArgument(
++        name="world",
++        default_value=str(sim_share / "worlds" / "kibot_one.world.sdf"),
++        description="Gazebo 世界的绝对路径。",
++    )
++    start_sim_arg = DeclareLaunchArgument(
++        name="start_sim",
++        default_value="true",
++        description="是否启动 Gazebo 与 ros_gz_bridge。",
++    )
++    run_on_start_arg = DeclareLaunchArgument(
++        name="run_on_start",
++        default_value="true",
++        description="是否让 Gazebo 启动后立即运行仿真。",
++    )
++
++    start_sim = IncludeLaunchDescription(
++        launch_description_source=PythonLaunchDescriptionSource(launch_file_path=str(sim_launch)),
++        launch_arguments={
++            "world": LaunchConfiguration(variable_name="world"),
++            "run_on_start": LaunchConfiguration(variable_name="run_on_start"),
++        }.items(),
++        condition=IfCondition(predicate_expression=LaunchConfiguration(variable_name="start_sim")),
++    )
++
++    detector = Node(
++        package="kibot_one_control",
++        executable="flag_detector",
++        name="flag_detector",
++        output="screen",
++        parameters=[{"use_sim_time": True}],
++    )
++
++    return LaunchDescription([
++        world_arg,
++        start_sim_arg,
++        run_on_start_arg,
++        start_sim,
++        detector,
++    ])
+diff --git a/src/kibot_one_control/setup.py b/src/kibot_one_control/setup.py
+index f8f6398..9e80648 100644
+--- a/src/kibot_one_control/setup.py
++++ b/src/kibot_one_control/setup.py
+@@ -14,6 +14,7 @@ setup(
+         ('share/' + package_name, ['package.xml']),
+         ('share/' + package_name + '/launch', [
+             'launch/control_console.launch.py',
++            'launch/flag_detection.launch.py',
+             'launch/frontier_exploration.launch.py',
+             'launch/follow_phase1.launch.py',
+             'launch/follow_phase2.launch.py',
+@@ -33,6 +34,7 @@ setup(
+             'mode_control = kibot_one_control.mode_control:main',
+             'flag_pose_publisher = kibot_one_control.flag_pose_publisher:main',
+             'follow_controller = kibot_one_control.follow_controller:main',
++            'flag_detector = kibot_one_control.flag_detector:main',
+             'frontier_explorer = kibot_one_control.frontier_explorer:main',
+         ],
+     },
+diff --git a/src/kibot_one_control/test/test_flag_detection_core.py b/src/kibot_one_control/test/test_flag_detection_core.py
+new file mode 100644
+index 0000000..ace8e8d
+--- /dev/null
++++ b/src/kibot_one_control/test/test_flag_detection_core.py
+@@ -0,0 +1,47 @@
++from kibot_one_control.flag_detection_core import detect_red_flag_pixels
++
++
++def _rgb_image(width: int, height: int, fill: tuple[int, int, int]) -> bytearray:
++    image = bytearray()
++    for _ in range(width * height):
++        image.extend(fill)
++    return image
++
++
++def test_detect_red_flag_pixels_reports_center_and_count() -> None:
++    width = 10
++    height = 8
++    image = _rgb_image(width, height, (20, 20, 20))
++    for y in range(2, 6):
++        for x in range(3, 7):
++            offset = (y * width + x) * 3
++            image[offset:offset + 3] = bytes((220, 20, 20))
++
++    detection = detect_red_flag_pixels(bytes(image), width, height, "rgb8", min_pixel_count=4)
++
++    assert detection.detected is True
++    assert detection.pixel_count == 16
++    assert detection.center_x == 4.5
++    assert detection.center_y == 3.5
++
++
++def test_detect_red_flag_pixels_rejects_small_red_noise() -> None:
++    image = _rgb_image(8, 8, (10, 10, 10))
++    image[0:3] = bytes((230, 10, 10))
++
++    detection = detect_red_flag_pixels(bytes(image), 8, 8, "rgb8", min_pixel_count=4)
++
++    assert detection.detected is False
++    assert detection.pixel_count == 1
++
++
++def test_detect_red_flag_pixels_supports_bgr8() -> None:
++    image = bytearray()
++    for _ in range(12):
++        image.extend((10, 20, 210))
++
++    detection = detect_red_flag_pixels(bytes(image), 4, 3, "bgr8", min_pixel_count=3)
++
++    assert detection.detected is True
++    assert detection.center_x == 1.5
++    assert detection.center_y == 1.0
+diff --git a/src/kibot_one_interface/CMakeLists.txt b/src/kibot_one_interface/CMakeLists.txt
+index 2b2e896..a3d81a8 100644
+--- a/src/kibot_one_interface/CMakeLists.txt
++++ b/src/kibot_one_interface/CMakeLists.txt
+@@ -24,13 +24,15 @@ if(BUILD_TESTING)
+ endif()
+ 
+ find_package(geometry_msgs REQUIRED)
++find_package(std_msgs REQUIRED)
+ find_package(rosidl_default_generators REQUIRED)
+ 
+ rosidl_generate_interfaces(${PROJECT_NAME}
++  "msg/FlagDetection.msg"
+   "msg/Mode.msg"
+   "msg/ModeState.msg"
+   "srv/Mode.srv"
+-  DEPENDENCIES geometry_msgs
++  DEPENDENCIES geometry_msgs std_msgs
+ )
+ 
+ ament_package()
+diff --git a/src/kibot_one_interface/msg/FlagDetection.msg b/src/kibot_one_interface/msg/FlagDetection.msg
+new file mode 100644
+index 0000000..c343915
+--- /dev/null
++++ b/src/kibot_one_interface/msg/FlagDetection.msg
+@@ -0,0 +1,8 @@
++std_msgs/Header header
++bool detected
++float32 center_x
++float32 center_y
++uint32 image_width
++uint32 image_height
++uint32 pixel_count
++float32 confidence
+diff --git a/src/kibot_one_interface/package.xml b/src/kibot_one_interface/package.xml
+index b65af1b..7a37821 100644
+--- a/src/kibot_one_interface/package.xml
++++ b/src/kibot_one_interface/package.xml
+@@ -16,6 +16,7 @@
+     <build_type>ament_cmake</build_type>
+   </export>
+   <depend>geometry_msgs</depend>
++  <depend>std_msgs</depend>
+ 
+   <buildtool_depend>rosidl_default_generators</buildtool_depend>
+   <exec_depend>rosidl_default_runtime</exec_depend>
+diff --git a/src/kibot_one_sim/config/ros_gz_bridge.yaml b/src/kibot_one_sim/config/ros_gz_bridge.yaml
+index 53c744e..14be6c4 100644
+--- a/src/kibot_one_sim/config/ros_gz_bridge.yaml
++++ b/src/kibot_one_sim/config/ros_gz_bridge.yaml
+@@ -28,6 +28,12 @@
+   gz_type_name: "gz.msgs.LaserScan"
+   direction: GZ_TO_ROS
+ 
++- ros_topic_name: "/camera/image_raw"
++  gz_topic_name: "/camera/image_raw"
++  ros_type_name: "sensor_msgs/msg/Image"
++  gz_type_name: "gz.msgs.Image"
++  direction: GZ_TO_ROS
++
+ - ros_topic_name: "/flag_pose"
+   gz_topic_name: "/model/follow_flag/pose"
+   ros_type_name: "geometry_msgs/msg/PoseStamped"
+diff --git a/src/kibot_one_sim/models/kibot_one_base/model.sdf b/src/kibot_one_sim/models/kibot_one_base/model.sdf
+index eeb8faf..d04e824 100644
+--- a/src/kibot_one_sim/models/kibot_one_base/model.sdf
++++ b/src/kibot_one_sim/models/kibot_one_base/model.sdf
+@@ -359,6 +359,34 @@
+       <child>lidar_link</child>
+     </joint>
+ 
++    <link name="camera_link">
++      <pose>0.29 0 0.24 0 0 0</pose>
++      <sensor name="front_camera" type="camera">
++        <topic>/camera/image_raw</topic>
++        <update_rate>15</update_rate>
++        <always_on>true</always_on>
++        <visualize>true</visualize>
++        <gz_frame_id>camera_link</gz_frame_id>
++        <camera>
++          <horizontal_fov>1.047</horizontal_fov>
++          <image>
++            <width>320</width>
++            <height>240</height>
++            <format>R8G8B8</format>
++          </image>
++          <clip>
++            <near>0.05</near>
++            <far>8.0</far>
++          </clip>
++        </camera>
++      </sensor>
++    </link>
++
++    <joint name="camera_joint" type="fixed">
++      <parent>base_link</parent>
++      <child>camera_link</child>
++    </joint>
++
+     <plugin
+       filename="gz-sim-pose-publisher-system"
+       name="gz::sim::systems::PosePublisher">
