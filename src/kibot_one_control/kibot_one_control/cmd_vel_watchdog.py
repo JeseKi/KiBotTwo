@@ -16,6 +16,8 @@ class CMDVelWatchDog(Node):
         self.last_command_was_zero = True
 
         params = [
+            ("cmd_vel_raw_topic", "cmd_vel_raw"),
+            ("cmd_vel_topic", "cmd_vel_smoothed"),
             ("stop_time_period", 0.5), # seconds
             ("watch_time_period", 0.1), # seconds
         ]
@@ -23,13 +25,13 @@ class CMDVelWatchDog(Node):
 
         self.cmd_vel_raw_subscription = self.create_subscription(
             msg_type=Twist,
-            topic='cmd_vel_raw',
+            topic=cast(str, self.get_parameter(name="cmd_vel_raw_topic").value),
             callback=self.cmd_vel_raw_listener_callback,
             qos_profile=10
         )
         self.cmd_vel_publisher = self.create_publisher(
             msg_type=Twist,
-            topic='cmd_vel',
+            topic=cast(str, self.get_parameter(name="cmd_vel_topic").value),
             qos_profile=10
         )
 
