@@ -1,0 +1,53 @@
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory  # type: ignore
+from launch import LaunchDescription  # type: ignore
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription  # type: ignore
+from launch.conditions import IfCondition  # type: ignore
+from launch.launch_description_sources import PythonLaunchDescriptionSource  # type: ignore
+from launch.substitutions import LaunchConfiguration  # type: ignore
+from launch_ros.actions import Node  # type: ignore
+
+def generate_launch_description() -> LaunchDescription:
+    sim_share = Path(get_package_share_directory(package_name="kibot_one_sim"))
+    sim_launch = sim_share / "launch" / "sim_with_bridge.launch.py"
+
+    world_arg = DeclareLaunchArgument(
+        name="world",
+        default_value=str(sim_share / "worlds" / "kibot_one.world.sdf"),
+        description="Gazebo 世界的绝对路径。",
+    )
+    start_sim_arg = DeclareLaunchArgument(
+        name="start_sim",
+        default_value="true",
+        description="是否启动 Gazebo 与 ros_gz_bridge。",
+    )
+    run_on_start_arg = DeclareLaunchArgument(
+        name="run_on_start",
+        default_value="true",
+        description="是否让 Gazebo 启动后立即运行仿真。",
+    )
+    start_sim = IncludeLaunchDescription(
+        launch_description_source=PythonLaunchDescriptionSource(launch_file_path=str(sim_launch)),
+        launch_arguments={
+            "world": LaunchConfiguration(variable_name="world"),
+            "run_on_start": LaunchConfiguration(variable_name="run_on_start"),
+        }.items(),
+        condition=IfCondition(predicate_expression=LaunchConfiguration(variable_name="start_sim")),
+    )
+
+    detector = Node(
+        package="kibot_one_control",
+        executable="flag_detector",
+        name="flag_detector",
+        output="screen",
+        parameters=[{"use_sim_time": True}],
+    )
+
+    return LaunchDescription(initial_entities=[
+        world_arg,
+        start_sim_arg,
+        run_on_start_arg,
+        start_sim,
+        detector,
+    ])

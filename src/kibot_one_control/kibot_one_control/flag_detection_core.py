@@ -1,0 +1,72 @@
+from dataclasses import dataclass
+from typing import Tuple
+
+
+@dataclass(frozen=True)
+class ColorDetection:
+    detected: bool
+    center_x: float
+    center_y: float
+    pixel_count: int
+    confidence: float
+
+
+def _channels_for_encoding(encoding: str) -> int:
+    normalized = encoding.lower()
+    if normalized in {"rgb8", "bgr8"}:
+        return 3
+    if normalized in {"rgba8", "bgra8"}:
+        return 4
+    return 0
+
+
+def _rgb_components(pixel: bytes, encoding: str) -> Tuple[int, int, int]:
+    normalized = encoding.lower()
+    if normalized in {"rgb8", "rgba8"}:
+        return pixel[0], pixel[1], pixel[2]
+    return pixel[2], pixel[1], pixel[0]
+
+
+def _empty_detection() -> ColorDetection:
+    return ColorDetection(False, 0.0, 0.0, 0, 0.0)
+
+
+def detect_red_flag_pixels(
+    image_data: bytes,
+    width: int,
+    height: int,
+    encoding: str,
+    min_red: int = 120,
+    red_margin: int = 45,
+    min_pixel_count: int = 80,
+) -> ColorDetection:
+    channels = _channels_for_encoding(encoding=encoding)
+    if width <= 0 or height <= 0 or channels == 0:
+        return _empty_detection()
+    
+    expected_size = width * height * channels
+    if len(image_data) < expected_size:
+        return _empty_detection()
+    
+    red_count = 0
+    x_sum = 0
+    y_sum = 0
+    for index in range(0, expected_size, channels):
+        pixel = image_data[index:index + channels]
+        red, greeen, blue = _rgb_components(pixel=pixel, encoding=encoding)
+        if red >= min_red and red >= greeen + red_margin and red >= blue + red_margin:
+            pixel_index = index // channels
+            x_sum += pixel_index % width
+            y_sum += pixel_index // width
+            red_count += 1
+
+    if red_count < min_pixel_count:
+        return ColorDetection(False, 0.0, 0.0, red_count, red_count / float(width * height))
+    
+    return ColorDetection(
+        True,
+        center_x=x_sum / red_count,
+        center_y=y_sum / red_count,
+        pixel_count=red_count,
+        confidence=min(1.0, red_count / float(width * height))
+    )

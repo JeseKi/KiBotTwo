@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>水平视场角相机演示</title>
+  <style>
+    :root {
+      --bg: #101114;
+      --panel: #191b20;
+      --panel-2: #22252c;
+      --text: #f2f3f5;
+      --muted: #a9afb9;
+      --border: #333842;
+      --accent: #4fb477;
+      --accent-2: #f4b942;
+      --red: #f15b5b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 260px),
+        var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .stage,
+    .panel,
+    .camera-card {
+      border: 1px solid var(--border);
+      background: rgba(25, 27, 32, 0.94);
+      border-radius: 8px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    .stage {
+      min-height: calc(100vh - 32px);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto minmax(360px, 1fr);
+    }
+
+    .stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+      font-weight: 760;
+    }
+
+    .subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .scene-wrap {
+      position: relative;
+      min-height: 0;
+      background: #0d0f12;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .legend {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      display: grid;
+      gap: 7px;
+      width: min(260px, calc(100% - 24px));
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      background: rgba(16, 17, 20, 0.78);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      backdrop-filter: blur(8px);
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .panel,
+    .camera-card {
+      padding: 14px;
+    }
+
+    .panel h2,
+    .camera-card h2 {
+      margin: 0 0 12px;
+      color: #d8dbe0;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      font-weight: 740;
+    }
+
+    .control {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .label-row strong {
+      color: var(--text);
+      font-weight: 760;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .quick-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 720;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      background: #2a2e36;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .metrics strong {
+      color: var(--text);
+      font-weight: 740;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .camera-frame {
+      aspect-ratio: 4 / 3;
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #08090b;
+    }
+
+    .camera-frame canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .formula {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid rgba(79, 180, 119, 0.28);
+      border-radius: 8px;
+      color: #d8f5e2;
+      background: rgba(79, 180, 119, 0.09);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        min-height: 620px;
+      }
+
+      .sidebar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app {
+        padding: 10px;
+      }
+
+      .stage-header {
+        display: grid;
+      }
+
+      .badge-row {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <div class="stage-header">
+        <div>
+          <h1>Gazebo camera horizontal_fov 直观演示</h1>
+          <div class="subtitle">外部视角显示相机视锥，右侧画面显示相机真正拍到的内容。</div>
+        </div>
+        <div class="badge-row">
+          <div class="badge">SDF 示例值: 1.047 rad</div>
+          <div class="badge">图像比例: 320 x 240</div>
+        </div>
+      </div>
+      <div class="scene-wrap" id="observerWrap">
+        <canvas id="observerCanvas" aria-label="相机视场角三维观察视图"></canvas>
+        <div class="legend">
+          <div class="legend-item"><span class="swatch" style="background: #4fb477"></span><span>绿色线框是当前相机水平视场角</span></div>
+          <div class="legend-item"><span class="swatch" style="background: #f15b5b"></span><span>红色旗面进入视锥后会出现在相机画面里</span></div>
+          <div class="legend-item"><span class="swatch" style="background: #f4b942"></span><span>黄色横线表示当前距离处可覆盖的宽度</span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>水平视场角</h2>
+        <div class="control">
+          <div class="label-row">
+            <span>horizontal_fov</span>
+            <strong id="hfovLabel">60.0 deg / 1.047 rad</strong>
+          </div>
+          <input id="hfovSlider" type="range" min="25" max="120" step="1" value="60" />
+          <div class="quick-buttons">
+            <button type="button" data-fov="35">35 deg</button>
+            <button type="button" data-fov="60">60 deg</button>
+            <button type="button" data-fov="95">95 deg</button>
+          </div>
+        </div>
+        <div class="metrics">
+          <span>垂直视场角</span><strong id="vfovLabel">46.8 deg</strong>
+          <span>3 m 处可见宽度</span><strong id="width3Label">3.46 m</strong>
+          <span>6 m 处可见宽度</span><strong id="width6Label">6.93 m</strong>
+          <span>near / far</span><strong>0.05 m / 8.0 m</strong>
+        </div>
+        <div class="formula" id="formulaLabel">visible_width = 2 * distance * tan(horizontal_fov / 2)</div>
+      </section>
+
+      <section class="camera-card">
+        <h2>相机画面</h2>
+        <div class="camera-frame">
+          <canvas id="sensorCanvas" width="320" height="240" aria-label="传感器相机画面"></canvas>
+        </div>
+        <div class="note">调大水平视场角时，同一距离能看到更宽范围；画面里的目标会变小。调小时，范围变窄；正前方目标更大。</div>
+      </section>
+
+      <section class="panel">
+        <h2>和 SDF 的关系</h2>
+        <div class="note">
+          Gazebo 的 <code>horizontal_fov</code> 是水平角度。Three.js 的相机参数是垂直角度，所以这里按 320:240 的宽高比换算后再渲染相机画面。
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const IMAGE_WIDTH = 320;
+    const IMAGE_HEIGHT = 240;
+    const ASPECT = IMAGE_WIDTH / IMAGE_HEIGHT;
+    const NEAR = 0.05;
+    const FAR = 8.0;
+
+    const observerCanvas = document.querySelector("#observerCanvas");
+    const sensorCanvas = document.querySelector("#sensorCanvas");
+    const observerWrap = document.querySelector("#observerWrap");
+    const hfovSlider = document.querySelector("#hfovSlider");
+    const hfovLabel = document.querySelector("#hfovLabel");
+    const vfovLabel = document.querySelector("#vfovLabel");
+    const width3Label = document.querySelector("#width3Label");
+    const width6Label = document.querySelector("#width6Label");
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d0f12);
+    scene.fog = new THREE.Fog(0x0d0f12, 8, 18);
+
+    const observerRenderer = new THREE.WebGLRenderer({ canvas: observerCanvas, antialias: true });
+    observerRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    observerRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const sensorRenderer = new THREE.WebGLRenderer({ canvas: sensorCanvas, antialias: true });
+    sensorRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    sensorRenderer.setSize(IMAGE_WIDTH, IMAGE_HEIGHT, false);
+    sensorRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const observerCamera = new THREE.PerspectiveCamera(46, 1, 0.1, 80);
+    observerCamera.position.set(5.4, 4.4, 6.8);
+    observerCamera.lookAt(0, 0.8, -3.8);
+    observerCamera.layers.enable(1);
+
+    const controls = new OrbitControls(observerCamera, observerCanvas);
+    controls.target.set(0, 0.85, -3.5);
+    controls.enableDamping = true;
+    controls.minDistance = 3.5;
+    controls.maxDistance = 15;
+    controls.maxPolarAngle = Math.PI * 0.49;
+
+    const sensorCamera = new THREE.PerspectiveCamera(46, ASPECT, NEAR, FAR);
+    sensorCamera.position.set(0, 0.9, 0);
+    sensorCamera.lookAt(0, 0.9, -1);
+    scene.add(sensorCamera);
+
+    const ambient = new THREE.HemisphereLight(0xffffff, 0x2d332f, 1.7);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+    sun.position.set(3, 6, 4);
+    scene.add(sun);
+
+    const grid = new THREE.GridHelper(14, 14, 0x59606b, 0x303640);
+    grid.position.z = -3.5;
+    scene.add(grid);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(14, 10),
+      new THREE.MeshStandardMaterial({ color: 0x171a1f, roughness: 0.9, metalness: 0.05 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, -0.01, -3.5);
+    scene.add(floor);
+
+    const cameraBody = makeCameraBody();
+    cameraBody.position.copy(sensorCamera.position);
+    setLayerRecursive(cameraBody, 1);
+    scene.add(cameraBody);
+
+    const helper = new THREE.CameraHelper(sensorCamera);
+    helper.material.color.set(0x4fb477);
+    setLayerRecursive(helper, 1);
+    scene.add(helper);
+
+    const distanceBars = makeDistanceBars();
+    distanceBars.forEach((bar) => {
+      setLayerRecursive(bar.group, 1);
+      scene.add(bar.group);
+    });
+
+    const targetGroup = new THREE.Group();
+    scene.add(targetGroup);
+    addFlags(targetGroup);
+    addReferencePosts(targetGroup);
+
+    function makeCameraBody() {
+      const group = new THREE.Group();
+
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.38, 0.24, 0.28),
+        new THREE.MeshStandardMaterial({ color: 0x20242b, roughness: 0.5 })
+      );
+      group.add(body);
+
+      const lens = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.09, 0.12, 32),
+        new THREE.MeshStandardMaterial({ color: 0x111316, roughness: 0.35, metalness: 0.4 })
+      );
+      lens.rotation.x = Math.PI / 2;
+      lens.position.z = -0.2;
+      group.add(lens);
+
+      const glass = new THREE.Mesh(
+        new THREE.CircleGeometry(0.07, 32),
+        new THREE.MeshBasicMaterial({ color: 0x4fb477 })
+      );
+      glass.position.z = -0.265;
+      group.add(glass);
+
+      return group;
+    }
+
+    function makeFlag(x, z, width, height, labelColor) {
+      const group = new THREE.Group();
+      group.position.set(x, 0, z);
+
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 1.45, 16),
+        new THREE.MeshStandardMaterial({ color: 0xd7d7d7, roughness: 0.45 })
+      );
+      pole.position.y = 0.72;
+      group.add(pole);
+
+      const flag = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, height),
+        new THREE.MeshStandardMaterial({ color: labelColor, side: THREE.DoubleSide, roughness: 0.62 })
+      );
+      flag.position.set(width / 2 + 0.02, 1.18, 0);
+      group.add(flag);
+
+      return group;
+    }
+
+    function addFlags(parent) {
+      const flags = [
+        makeFlag(-2.7, -3.0, 0.68, 0.48, 0xf15b5b),
+        makeFlag(-1.0, -4.3, 0.72, 0.5, 0xf15b5b),
+        makeFlag(0.65, -3.4, 0.62, 0.46, 0xf15b5b),
+        makeFlag(2.35, -5.8, 0.86, 0.58, 0xf15b5b),
+        makeFlag(3.4, -3.3, 0.64, 0.48, 0xf15b5b)
+      ];
+      flags.forEach((flag) => parent.add(flag));
+    }
+
+    function addReferencePosts(parent) {
+      const material = new THREE.MeshStandardMaterial({ color: 0x74a6d8, roughness: 0.7 });
+      for (const z of [-2, -4, -6, -8]) {
+        for (const x of [-4, 4]) {
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, 0.08), material);
+          post.position.set(x, 0.4, z);
+          parent.add(post);
+        }
+      }
+    }
+
+    function makeDistanceBars() {
+      return [3, 6].map((distance) => {
+        const group = new THREE.Group();
+        group.position.set(0, 0.035, -distance);
+
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xf4b942, linewidth: 2 });
+        const geometry = new THREE.BufferGeometry();
+        const line = new THREE.Line(geometry, lineMaterial);
+        group.add(line);
+
+        const leftTick = makeTick();
+        const rightTick = makeTick();
+        group.add(leftTick, rightTick);
+
+        return { distance, group, line, leftTick, rightTick };
+      });
+    }
+
+    function makeTick() {
+      return new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.05, 0.32),
+        new THREE.MeshBasicMaterial({ color: 0xf4b942 })
+      );
+    }
+
+    function setLayerRecursive(object, layer) {
+      object.layers.set(layer);
+      object.traverse((child) => child.layers.set(layer));
+    }
+
+    function horizontalToVerticalFov(horizontalDeg, aspect) {
+      const horizontalRad = THREE.MathUtils.degToRad(horizontalDeg);
+      return THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(horizontalRad / 2) / aspect));
+    }
+
+    function visibleWidth(distance, horizontalDeg) {
+      return 2 * distance * Math.tan(THREE.MathUtils.degToRad(horizontalDeg) / 2);
+    }
+
+    function updateFov(horizontalDeg) {
+      const verticalDeg = horizontalToVerticalFov(horizontalDeg, ASPECT);
+      sensorCamera.fov = verticalDeg;
+      sensorCamera.aspect = ASPECT;
+      sensorCamera.near = NEAR;
+      sensorCamera.far = FAR;
+      sensorCamera.updateProjectionMatrix();
+      helper.update();
+
+      distanceBars.forEach((bar) => {
+        const halfWidth = visibleWidth(bar.distance, horizontalDeg) / 2;
+        const positions = new Float32Array([
+          -halfWidth, 0, 0,
+          halfWidth, 0, 0
+        ]);
+        bar.line.geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        bar.line.geometry.computeBoundingSphere();
+        bar.leftTick.position.x = -halfWidth;
+        bar.rightTick.position.x = halfWidth;
+      });
+
+      const horizontalRad = THREE.MathUtils.degToRad(horizontalDeg);
+      hfovLabel.textContent = `${horizontalDeg.toFixed(1)} deg / ${horizontalRad.toFixed(3)} rad`;
+      vfovLabel.textContent = `${verticalDeg.toFixed(1)} deg`;
+      width3Label.textContent = `${visibleWidth(3, horizontalDeg).toFixed(2)} m`;
+      width6Label.textContent = `${visibleWidth(6, horizontalDeg).toFixed(2)} m`;
+    }
+
+    function resizeObserverView() {
+      const rect = observerWrap.getBoundingClientRect();
+      const width = Math.max(320, Math.floor(rect.width));
+      const height = Math.max(320, Math.floor(rect.height));
+      observerRenderer.setSize(width, height, false);
+      observerCamera.aspect = width / height;
+      observerCamera.updateProjectionMatrix();
+    }
+
+    function animate() {
+      controls.update();
+      observerRenderer.render(scene, observerCamera);
+      sensorRenderer.render(scene, sensorCamera);
+      requestAnimationFrame(animate);
+    }
+
+    hfovSlider.addEventListener("input", () => updateFov(Number(hfovSlider.value)));
+    document.querySelectorAll("[data-fov]").forEach((button) => {
+      button.addEventListener("click", () => {
+        hfovSlider.value = button.dataset.fov;
+        updateFov(Number(hfovSlider.value));
+      });
+    });
+
+    const resizeObserver = new ResizeObserver(resizeObserverView);
+    resizeObserver.observe(observerWrap);
+    window.addEventListener("resize", resizeObserverView);
+
+    updateFov(Number(hfovSlider.value));
+    resizeObserverView();
+    animate();
+  </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+from kibot_one_control.flag_detection_core import detect_red_flag_pixels
+
+
+def _rgb_image(width: int, height: int, fill: tuple[int, int, int]) -> bytearray:
+    image = bytearray()
+    for _ in range(width * height):
+        image.extend(fill)
+    return image
+
+def test_detect_red_flag_pixels_reports_center_and_count() -> None:
+    width = 10
+    height = 8
+    image = _rgb_image(width, height, (20, 20, 20))
+    for y in range(2, 6):
+        for x in range(3, 7):
+            offset = (y * width + x) * 3
+            image[offset:offset + 3] = bytes((220, 20, 20))
+
+    detection = detect_red_flag_pixels(bytes(image), width, height, "rgb8", min_pixel_count=4)
+
+    assert detection.detected is True
+    assert detection.pixel_count == 16
+    assert detection.center_x == 4.5
+    assert detection.center_y == 3.5
+
+def test_detect_red_flag_pixels_rejects_small_red_noise() -> None:
+    image = _rgb_image(8, 8, (10, 10, 10))
+    image[0:3] = bytes((230, 10, 10))
+
+    detection = detect_red_flag_pixels(bytes(image), 8, 8, "rgb8", min_pixel_count=4)
+
+    assert detection.detected is False
+    assert detection.pixel_count == 1
+
+def test_detect_red_flag_pixels_supports_bgr8() -> None:
+    image = bytearray()
+    for _ in range(12):
+        image.extend((10, 20, 210))
+
+    detection = detect_red_flag_pixels(bytes(image), 4, 3, "bgr8", min_pixel_count=3)
+
+    assert detection.detected is True
+    assert detection.center_x == 1.5
+    assert detection.center_y == 1.0

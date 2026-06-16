@@ -24,9 +24,11 @@ if(BUILD_TESTING)
 endif()
 
 find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/FlagDetection.msg"
   "msg/Mode.msg"
   "msg/ModeState.msg"
   "srv/Mode.srv"

@@ -14,6 +14,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', [
             'launch/control_console.launch.py',
+            'launch/flag_detection.launch.py',
             'launch/frontier_exploration.launch.py',
             'launch/follow_phase1.launch.py',
             'launch/follow_phase2.launch.py',
@@ -33,6 +34,7 @@ setup(
             'mode_control = kibot_one_control.mode_control:main',
             'flag_pose_publisher = kibot_one_control.flag_pose_publisher:main',
             'follow_controller = kibot_one_control.follow_controller:main',
+            'flag_detector = kibot_one_control.flag_detector:main',
             'frontier_explorer = kibot_one_control.frontier_explorer:main',
         ],
     },

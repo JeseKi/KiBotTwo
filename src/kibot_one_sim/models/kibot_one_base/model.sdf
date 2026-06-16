@@ -359,6 +359,34 @@
       <child>lidar_link</child>
     </joint>
 
+    <link name="camera_link">
+      <pose>0.29 0 0.24 0 0 0</pose>
+      <sensor name="front_camera" type="camera">
+        <topic>/camera/image_raw</topic>
+        <update_rate>15</update_rate>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+        <gz_frame_id>camera_link</gz_frame_id>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>320</width>
+            <height>240</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>8.0</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
+
+    <joint name="camera_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>camera_link</child>
+    </joint>
+
     <plugin
       filename="gz-sim-pose-publisher-system"
       name="gz::sim::systems::PosePublisher">
