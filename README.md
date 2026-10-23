@@ -194,6 +194,8 @@ ros2 service call /mode_control kibot_one_interface/srv/Mode "{
 | `/tf` | `tf2_msgs/msg/TFMessage` | Gazebo 输出的 TF |
 | `/robot_pose` | `geometry_msgs/msg/PoseStamped` | 机器人在 Gazebo 中的位姿 |
 | `/flag_pose` | `geometry_msgs/msg/PoseStamped` | 跟随目标旗标位姿 |
+| `/camera/image_raw` | `sensor_msgs/msg/Image` | 相机图像，视觉检测输入 |
+| `/flag_detection` | `kibot_one_interface/msg/FlagDetection` | 视觉检测输出，供后续定位与任务状态机消费 |
 | `/mode` | `kibot_one_interface/msg/ModeState` | 当前运行模式 |
 | `/mode_control` | `kibot_one_interface/srv/Mode` | 模式切换服务 |
 
@@ -242,6 +244,8 @@ ros2 service call /mode_control kibot_one_interface/srv/Mode "{
 | `sector_count` | `31` | 候选航向扇区数量 |
 
 ## 开发命令
+
+视觉接口的默认话题、真实 ROS 回归测试及验证命令见 [FlagDetection 接口回归验证](docs/embodied-ai-roadmap/04-视觉旗帜检测/reference/flag-detection-regression.md)。
 
 ```bash
 make build   # colcon build

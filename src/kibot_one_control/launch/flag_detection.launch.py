@@ -27,6 +27,16 @@ def generate_launch_description() -> LaunchDescription:
         default_value="true",
         description="是否让 Gazebo 启动后立即运行仿真。",
     )
+    image_topic_arg = DeclareLaunchArgument(
+        name="image_topic",
+        default_value="/camera/image_raw",
+        description="检测器订阅的 sensor_msgs/msg/Image 话题。",
+    )
+    detection_topic_arg = DeclareLaunchArgument(
+        name="detection_topic",
+        default_value="/flag_detection",
+        description="检测器发布的 kibot_one_interface/msg/FlagDetection 话题。",
+    )
     start_sim = IncludeLaunchDescription(
         launch_description_source=PythonLaunchDescriptionSource(launch_file_path=str(sim_launch)),
         launch_arguments={
@@ -41,13 +51,19 @@ def generate_launch_description() -> LaunchDescription:
         executable="flag_detector",
         name="flag_detector",
         output="screen",
-        parameters=[{"use_sim_time": True}],
+        parameters=[{
+            "use_sim_time": True,
+            "image_topic": LaunchConfiguration(variable_name="image_topic"),
+            "detection_topic": LaunchConfiguration(variable_name="detection_topic"),
+        }],
     )
 
     return LaunchDescription(initial_entities=[
         world_arg,
         start_sim_arg,
         run_on_start_arg,
+        image_topic_arg,
+        detection_topic_arg,
         start_sim,
         detector,
     ])

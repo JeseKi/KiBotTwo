@@ -21,6 +21,7 @@ setup(
         ]),
     ],
     install_requires=['setuptools'],
+    tests_require=['pytest'],
     zip_safe=True,
     maintainer='jese--ki',
     maintainer_email='2094901072@qq.com',
