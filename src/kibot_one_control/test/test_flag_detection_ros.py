@@ -78,6 +78,16 @@ def _image(red_pixels, stamp, encoding="rgb8"):
     return image
 
 
+def _check_local_qos(detector):
+    # DDS discovery does not expose history/depth on every RMW implementation.
+    output = detector.detection_pub.qos_profile
+    assert output.reliability == ReliabilityPolicy.RELIABLE
+    assert output.durability == DurabilityPolicy.VOLATILE
+    assert output.history == HistoryPolicy.KEEP_LAST
+    assert output.depth == 10
+    assert detector.image_sub.qos_profile.reliability == ReliabilityPolicy.BEST_EFFORT
+
+
 def _check_pipeline(graph, image_topic, detection_topic):
     executor, probe = graph
     received = []
@@ -99,8 +109,6 @@ def _check_pipeline(graph, image_topic, detection_topic):
     for endpoint in probe.get_publishers_info_by_topic(detection_topic):
         assert endpoint.qos_profile.reliability == ReliabilityPolicy.RELIABLE
         assert endpoint.qos_profile.durability == DurabilityPolicy.VOLATILE
-        assert endpoint.qos_profile.history == HistoryPolicy.KEEP_LAST
-        assert endpoint.qos_profile.depth == 10
     assert probe.count_publishers("/flag_dectection") == 0
 
     # A hit followed by misses must clear stale centers; each result keeps its input header.
@@ -128,6 +136,7 @@ def _check_pipeline(graph, image_topic, detection_topic):
 def test_default_detector_publishes_public_contract(graph):
     detector = FlagDetector()
     graph[0].add_node(detector)
+    _check_local_qos(detector)
     assert detector.get_parameter("image_topic").value == "/camera/image_raw"
     assert detector.get_parameter("detection_topic").value == "/flag_detection"
     _check_pipeline(graph, "/camera/image_raw", "/flag_detection")
@@ -154,6 +163,7 @@ def test_detector_supports_explicit_topic_configuration(graph, configuration):
             ]
         )
     graph[0].add_node(detector)
+    _check_local_qos(detector)
     assert detector.image_sub.topic_name == image_topic
     assert detector.detection_pub.topic_name == detection_topic
     assert graph[1].count_publishers("/flag_detection") == 0
@@ -226,6 +236,7 @@ def test_camera_viewer_default_subscriber_receives_detector_messages(graph):
     detector = FlagDetector()
     graph[0].add_node(viewer)
     graph[0].add_node(detector)
+    _check_local_qos(detector)
     assert viewer._detection_sub.topic_name == "/flag_detection"
     _check_pipeline(graph, args.image_topic, args.detection_topic)
     _wait(
