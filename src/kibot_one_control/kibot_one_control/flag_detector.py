@@ -43,7 +43,7 @@ class FlagDetector(Node):
             namespace="",
             parameters=[
                 ("image_topic", "/camera/image_raw"),
-                ("detection_topic", "/flag_dectection"),
+                ("detection_topic", "/flag_detection"),
                 ("min_red", 120),
                 ("red_margin", 45),
                 ("min_pixel_count", 80),

@@ -311,7 +311,7 @@ class ViewerState:
         if detection is not None:
             self._draw_detection(frame, detection)
         else:
-            self._draw_text_panel(frame, ["Waiting for /flag_dectection"])
+            self._draw_text_panel(frame, ["Waiting for flag detection"])
 
         ok, encoded = cv2.imencode(
             ".jpg",
@@ -592,7 +592,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--image-topic", default="/camera/image_raw", help="ROS image topic.")
     parser.add_argument(
         "--detection-topic",
-        default="/flag_dectection",
+        default="/flag_detection",
         help="ROS flag detection topic.",
     )
     parser.add_argument(

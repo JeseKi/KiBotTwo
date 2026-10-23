@@ -17,3 +17,7 @@ dependencies = [
 
 [tool.mypy]
 exclude = '(^|/)(build|install|log|__pycache__)(/|$)'
+
+[tool.pytest.ini_options]
+pythonpath = ["src/kibot_one_control"]
+testpaths = ["src/kibot_one_control/test"]

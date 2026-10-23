@@ -1,0 +1,46 @@
+name: Flag detection contract
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ros-contract:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    timeout-minutes: 15
+    env:
+      ROS_DOMAIN_ID: "73"
+      ROS_LOCALHOST_ONLY: "1"
+      KIBOT_REQUIRE_ROS_TESTS: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test and build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions python3-pytest python3-opencv \
+            ros-jazzy-rosidl-default-generators ros-jazzy-sensor-msgs ros-jazzy-launch-ros
+      - name: Build message, simulation resources and detector
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --packages-select kibot_one_interface kibot_one_sim kibot_one_control \
+            --cmake-args -DBUILD_TESTING=OFF --event-handlers console_direct+
+      - name: Run Python and real ROS contract regressions
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test --packages-select kibot_one_control \
+            --event-handlers console_direct+ --return-code-on-test-failure --pytest-args " -q"
+      - name: Report test results
+        if: always()
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon test-result --verbose
